@@ -1,0 +1,118 @@
+.home-hero {
+  background-image: url("https://images.unsplash.com/photo-1505691723518-36a5b1f3d0c8?auto=format&fit=crop&w=1600&q=60");
+  background-size: cover;
+  background-position: center;
+  color: white;
+  padding: 6rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-hero__content {
+  max-width: 920px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2.5rem;
+  border-radius: 8px;
+}
+
+.home-hero h1 {
+  font-size: 2.25rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-white);
+}
+
+.home-hero .muted {
+  color: var(--color-white);
+  margin-bottom: 1rem;
+  opacity: 0.9;
+}
+
+.home-hero__cta .btn {
+  padding: 0.6rem 1.1rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 2.5rem auto;
+  padding: 0 1rem;
+}
+
+.section-title {
+  text-align: left;
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+}
+
+
+.hostel-card {
+  border: 1px solid var(--color-gray-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hostel-card__media {
+  height: 160px;
+  background: var(--color-gray-light);
+}
+
+.hostel-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hostel-card__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-gray-muted);
+}
+
+.hostel-card__body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hostel-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-black);
+}
+
+.hostel-card__meta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hostel-card__price {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.hostel-card__score,
+.hostel-card__facilities,
+.hostel-card__rooms {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .home-hero {
+    padding: 3rem 1rem;
+  }
+  .home-hero h1 {
+    font-size: 1.3rem;
+  }
+}

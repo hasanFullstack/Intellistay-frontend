@@ -1,0 +1,154 @@
+.hostel-rooms-page {
+  min-height: calc(100vh - 60px);
+}
+
+.hostel-rooms-shell {
+  padding-top: 0 !important;
+}
+
+.hostel-rooms-header {
+  position: relative;
+}
+
+.hostel-rooms-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  color: #235784;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.hostel-rooms-breadcrumb:hover {
+  background: #235784;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.hostel-rooms-hero-card {
+  border: 1px solid rgba(35, 87, 132, 0.08);
+}
+
+.hostel-rooms-hero-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.hostel-rooms-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(35, 87, 132, 0.1);
+  color: #235784;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hostel-rooms-stats {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.hostel-rooms-stat-card {
+  min-width: 140px;
+  background: linear-gradient(135deg, #235784 0%, #1a3f57 100%);
+  color: white;
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgba(35, 87, 132, 0.18);
+}
+
+.hostel-rooms-stat-card strong {
+  font-size: 1.8rem;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+
+.hostel-rooms-stat-card span {
+  font-size: 0.9rem;
+  opacity: 0.92;
+}
+
+.hostel-room-card {
+  cursor: pointer;
+  outline: none;
+}
+
+.hostel-room-card:focus-visible {
+  box-shadow: 0 0 0 4px rgba(35, 87, 132, 0.2), 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.hostel-room-card__footer {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.hostel-room-card__cta {
+  margin: 0;
+  pointer-events: none;
+}
+
+.hostel-rooms-empty-state {
+  background: white;
+  border-radius: 18px;
+  padding: 4rem 1.5rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.hostel-rooms-empty-state i {
+  font-size: 3rem;
+  color: #235784;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.hostel-rooms-empty-state h2 {
+  font-size: 2rem;
+  color: #1a1a1a;
+  margin-bottom: 0.75rem;
+}
+
+.hostel-rooms-empty-state p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.hostel-rooms-back-btn {
+  margin: 0 auto;
+  max-width: 240px;
+}
+
+.hostel-rooms-empty-results {
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .hostel-rooms-breadcrumb {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hostel-rooms-stats {
+    width: 100%;
+  }
+
+  .hostel-rooms-stat-card {
+    flex: 1;
+    min-width: 0;
+  }
+}

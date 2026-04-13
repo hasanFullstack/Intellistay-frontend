@@ -1,0 +1,89 @@
+.auth-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.auth-modal-card {
+  background: #fff;
+  padding: 2.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  position: relative;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.auth-modal-card h2 {
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.auth-modal-card input,
+.auth-modal-card select {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.auth-modal-card input:focus,
+.auth-modal-card select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(60, 115, 255, 0.2);
+}
+
+.auth-modal-card button {
+  width: 100%;
+  padding: 0.65rem 0;
+  margin-top: 0.5rem;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
+}
+
+.auth-modal-card button:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.switch-text {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.switch-text:hover {
+  color: var(--color-primary);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
