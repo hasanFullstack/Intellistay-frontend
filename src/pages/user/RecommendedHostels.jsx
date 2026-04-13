@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getRecommendations } from "../../api/recommendation.api";
 import { toast } from "react-toastify";
+import { Heart } from "lucide-react";
+import { useFavorites } from "../../hooks/useFavorites";
 
 const RecommendedHostels = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   const navigate = useNavigate();
+  const { isFavorited, toggleFavorite } = useFavorites();
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -116,7 +121,7 @@ const RecommendedHostels = () => {
 
       {/* Recommendation Cards */}
       <div className="row g-4">
-        {recommendations.map((rec, idx) => (
+        {recommendations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec, idx) => {
           <div key={rec.hostel._id} className="col-md-6 col-lg-4">
             <div
               style={{
@@ -167,7 +172,8 @@ const RecommendedHostels = () => {
               <div style={{
                 height: "160px",
                 background: "linear-gradient(135deg, #e0e7ff, #c7d2fe)",
-                display: "flex", alignItems: "center", justifyContent: "center"
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative"
               }}>
                 {rec.hostel.images && rec.hostel.images.length > 0 ? (
                   <img src={rec.hostel.images[0]} alt={rec.hostel.name}
@@ -175,6 +181,47 @@ const RecommendedHostels = () => {
                 ) : (
                   <i className="bi bi-building" style={{ fontSize: "48px", color: "#818cf8", opacity: 0.5 }}></i>
                 )}
+                {/* Favorite Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(rec.hostel._id);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: "8px",
+                    right: "8px",
+                    background: isFavorited(rec.hostel._id) ? "rgba(239, 68, 68, 0.8)" : "rgba(255, 255, 255, 0.2)",
+                    backdropFilter: "blur(8px)",
+                    padding: "8px",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "white",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isFavorited(rec.hostel._id)) {
+                      e.currentTarget.style.background = "white";
+                      e.currentTarget.style.color = "#ef4444";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isFavorited(rec.hostel._id)) {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+                      e.currentTarget.style.color = "white";
+                    }
+                  }}
+                >
+                  <Heart
+                    size={18}
+                    fill={isFavorited(rec.hostel._id) ? "currentColor" : "none"}
+                    color="white"
+                  />
+                </button>
               </div>
 
               {/* Content */}
@@ -278,8 +325,76 @@ const RecommendedHostels = () => {
               </div>
             </div>
           </div>
-        ))}
+        })}
       </div>
+
+      {/* Pagination */}
+      {recommendations.length > itemsPerPage && (
+        <div style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "8px",
+          marginTop: "32px",
+          paddingTop: "24px",
+          borderTop: "1px solid #f1f5f9"
+        }}>
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "8px",
+              border: currentPage === 1 ? "1px solid #e2e8f0" : "1px solid #6366f1",
+              background: currentPage === 1 ? "#f8fafc" : "white",
+              color: currentPage === 1 ? "#94a3b8" : "#6366f1",
+              cursor: currentPage === 1 ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              fontSize: "14px"
+            }}
+          >
+            ← Previous
+          </button>
+
+          {Array.from({ length: Math.ceil(recommendations.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                border: currentPage === page ? "1px solid #6366f1" : "1px solid #e2e8f0",
+                background: currentPage === page ? "#6366f1" : "white",
+                color: currentPage === page ? "white" : "#64748b",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "14px",
+                transition: "all 0.2s"
+              }}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(recommendations.length / itemsPerPage)))}
+            disabled={currentPage === Math.ceil(recommendations.length / itemsPerPage)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "8px",
+              border: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "1px solid #e2e8f0" : "1px solid #6366f1",
+              background: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "#f8fafc" : "white",
+              color: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "#94a3b8" : "#6366f1",
+              cursor: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              fontSize: "14px"
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 };

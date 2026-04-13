@@ -4,6 +4,7 @@ import {
     FaYoutube,
 } from "react-icons/fa";
 import { BsTwitterX } from "react-icons/bs";
+import { FaArrowRightLong  } from "react-icons/fa6";
 
 
 const Footer = () => {
@@ -41,8 +42,8 @@ const Footer = () => {
                             />
 
                             {/* PERFECT CIRCLE BUTTON */}
-                            <button className="bg-[var(--primary-color)] w-12 h-12 flex items-center justify-center !rounded-full bg-blue-500 text-white !text-2xl !font-bold shrink-0" style={{ borderRadius: '50%' }}>
-                                →
+                            <button className="bg-[#2b5a84] w-12 h-12 flex items-center justify-center text-white !text-2xl !font-bold shrink-0" style={{ borderRadius: '50%' }}>
+                                <FaArrowRightLong />
                             </button>
                         </div>
                     </div>

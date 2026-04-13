@@ -84,6 +84,95 @@
   align-items: center;
 }
 
+.navbar-shell {
+  position: relative;
+  z-index: 40;
+  background: #fff;
+}
+
+.navbar__mobile-toggle {
+  display: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #d9e1ea;
+  background: #fff;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+  transition: all 0.25s ease;
+}
+
+.navbar__mobile-toggle .bar {
+  width: 19px;
+  height: 2px;
+  background: #1f3650;
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.navbar__mobile-toggle.open .bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.navbar__mobile-toggle.open .bar:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar__mobile-toggle.open .bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.navbar__mobile-panel {
+  position: fixed;
+  top: 0;
+  right: -320px;
+  width: min(86vw, 320px);
+  height: 100vh;
+  background: #fff;
+  box-shadow: -12px 0 36px rgba(15, 23, 42, 0.16);
+  padding: 90px 1rem 1.2rem;
+  transition: right 0.28s ease;
+  z-index: 70;
+  display: none;
+}
+
+.navbar__mobile-panel.open {
+  right: 0;
+}
+
+.navbar__mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.38);
+  border: none;
+  z-index: 60;
+}
+
+.navbar__mobile-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.navbar__mobile-links .navlink {
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  font-weight: 500;
+}
+
+.navbar__mobile-links .navlink.active {
+  background: #edf5ff;
+}
+
+.navbar__mobile-actions {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 /* Navbar User Menu */
 .navbar__user-menu {
   display: flex;
@@ -190,4 +279,24 @@ button.btn-icon-danger,
 }
 .btn:hover {
   background: var(--color-primary-dark) !important;
+}
+
+@media (max-width: 992px) {
+  .navbar__links,
+  .navbar__actions {
+    display: none;
+  }
+
+  .navbar__mobile-toggle {
+    display: inline-flex;
+  }
+
+  .navbar__mobile-panel {
+    display: block;
+  }
+
+  .navbar__logo-img {
+    height: 54px;
+    width: 235px;
+  }
 }

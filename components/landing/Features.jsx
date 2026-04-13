@@ -32,7 +32,7 @@ const FeaturesSection = () => {
                 </h2>
 
                 <p className="text-slate-500 text-base md:text-lg mb-12 max-w-xl leading-relaxed">
-                    Intellistay provides completely digitized hostel booking, smart roommate matching, 
+                    Intellistay provides completely digitized hostel booking, smart roommate matching,
                     and premium amenities to ensure that your academic life is completely stress-free.
                 </p>
 
@@ -51,14 +51,14 @@ const FeaturesSection = () => {
                 </div>
 
                 {/* Buttons */}
-                <div className="flex items-center gap-8">
-                    <button 
+                <div className="flex flex-col md:flex-row items-center gap-8">
+                    <button
                         onClick={() => navigate('/hostels')}
-                        className="bg-[#2b5a84] hover:bg-[#1e4161] text-white px-8 py-3 rounded-md font-semibold transition-all"
+                        className="btn  hover:bg-[#1e4161] text-white !px-8 py-3 rounded-md font-semibold transition-all"
                     >
                         Find Hostels
                     </button>
-                    <button 
+                    <button
                         onClick={() => navigate('/about')}
                         className="flex items-center gap-2 text-[#2b5a84] font-semibold hover:gap-3 transition-all"
                     >
@@ -69,11 +69,14 @@ const FeaturesSection = () => {
 
             {/* Right Image/Video Side */}
             <div className="w-full lg:w-1/2 relative min-h-[400px]">
-                <img
-                    src="https://images.pexels.com/photos/3184311/pexels-photo-3184311.jpeg?auto=compress&cs=tinysrgb&w=1000"
-                    alt="Students laughing and studying in hostel"
-                    className="w-full h-full object-cover"
-                />
+
+                <div className="absolute h-full w-full inset-0">
+                    <img
+                        src="https://images.pexels.com/photos/3184311/pexels-photo-3184311.jpeg?auto=compress&cs=tinysrgb&w=1000"
+                        alt="Students laughing and studying in hostel"
+                        className="w-full h-full object-fit"
+                    />
+                </div>
 
                 {/* Play Button Overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
