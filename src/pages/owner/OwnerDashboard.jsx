@@ -490,6 +490,7 @@ const OwnerDashboard = () => {
                                 <table className="table table-sm table-hover">
                                   <thead className="table-light">
                                     <tr>
+                                      <th>Label</th>
                                       <th>Type</th>
                                       <th>Total Beds</th>
                                       <th>Available Beds</th>
@@ -500,6 +501,9 @@ const OwnerDashboard = () => {
                                   <tbody>
                                     {rooms.map((room) => (
                                       <tr key={room._id}>
+                                        <td>
+                                          <small className="text-muted">{room.roomLabel || '—'}</small>
+                                        </td>
                                         <td>
                                           <strong>{room.roomType}</strong>
                                         </td>
@@ -541,6 +545,7 @@ const OwnerDashboard = () => {
                                               handleDeleteRoom(
                                                 room._id,
                                                 hostel._id,
+                                                room.roomLabel || room.roomType,
                                               )
                                             }
                                             title="Delete room"

@@ -663,10 +663,10 @@ const RoomDetail = () => {
               <div className="space-y-4 mb-8">
                 <div className="p-4 bg-slate-50 rounded-lg">
                   <p className="text-xs font-bold text-slate-500 mb-1 tracking-widest uppercase">
-                    ROOM TYPE
+                      ROOM TYPE
                   </p>
                   <p className="font-semibold text-[var(--color-primary)]  capitalize">
-                    {room.roomType}
+                    {room.roomType} {room.roomLabel ? <span className="text-sm text-gray-600 font-medium">· {room.roomLabel}</span> : null}
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-lg flex justify-between items-center">
