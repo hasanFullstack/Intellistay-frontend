@@ -446,11 +446,11 @@ const UserDashboard = () => {
                     return (
                       <div
                         key={id || Math.random()}
-                        className="w-[380px] rounded-3xl overflow-hidden shadow-md bg-white font-sans border border-gray-100 cursor-pointer"
+                        className="group relative w-[380px] rounded-3xl overflow-hidden shadow-md bg-white font-sans border border-gray-100 transition-transform cursor-pointer"
                         onClick={() => navigate(`/hostels/${id}/rooms`)}
                       >
                         <div className="relative h-[280px] overflow-hidden">
-                          <img src={imageUrl} alt={imageAlt} className="w-full h-full object-cover" />
+                          <img src={imageUrl} alt={imageAlt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           {/* Favorite Button */}
                           <button
                             onClick={async (e) => {
