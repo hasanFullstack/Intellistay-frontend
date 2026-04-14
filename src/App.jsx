@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import "./App.css";
@@ -37,6 +37,7 @@ const MainLayout = ({ children, authOpen, setAuthOpen }) => {
 const AppContent = ({ authOpen, setAuthOpen }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Standalone pages (no Navbar/Footer)
   const standaloneRoutes = ["/booking-success"];
@@ -54,7 +55,7 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
     <MainLayout authOpen={authOpen} setAuthOpen={setAuthOpen}>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<AuthModal isOpen={true} onClose={() => {}} />} />
+        <Route path="/login" element={<AuthModal isOpen={true} onClose={() => navigate("/")} />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/hostels" element={<Hostels />} />

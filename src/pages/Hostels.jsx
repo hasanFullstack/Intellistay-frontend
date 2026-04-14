@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getAllHostels } from "../api/hostel.api";
 import { Select, Pagination } from "antd";
 import "antd/dist/antd.css";
@@ -84,7 +84,8 @@ const Hostels = () => {
   const [selectedFilter, setSelectedFilter] = useState("All Hostels");
   const [filterGender, setFilterGender] = useState("all");
   const { user } = useAuth();
-  const { isFavorited, toggleFavorite } = useFavorites();
+  const { isFavorited, toggleFavorite, favoriteHostels, loading: favLoading } = useFavorites();
+  const location = useLocation();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Reduced from 8 for faster initial render
@@ -93,6 +94,34 @@ const Hostels = () => {
   useEffect(() => {
     loadHostels();
   }, []);
+
+  // When URL requests favorites, apply filters on favoriteHostels once hook loads
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlFilter = params.get("filter");
+    if (urlFilter !== "favorites") return;
+
+    if (favLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // Apply search/gender/selectedFilter on favoriteHostels
+    applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, searchTerm, filterGender);
+    setLoading(false);
+  }, [location.search, favoriteHostels, favLoading, selectedFilter, searchTerm, filterGender]);
+
+  // If navigated with ?filter=favorites, show user's favorite hostels
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const filter = params.get("filter");
+    if (filter === "favorites") {
+      // show favorites (hook provides favoriteHostels)
+      setLoading(false);
+      setFilteredHostels(Array.isArray(favoriteHostels) ? favoriteHostels : []);
+      setCurrentPage(1);
+    }
+  }, [location.search, favoriteHostels]);
 
   useEffect(() => {
     // Prefetch all filter data when user role is student
@@ -103,11 +132,18 @@ const Hostels = () => {
 
   const loadHostels = async () => {
     const cachedHostels = readCachedHostels();
+    const params = new URLSearchParams(location.search);
+    const urlFilter = params.get("filter");
 
     if (cachedHostels?.length) {
       setHostels(cachedHostels);
-      setFilteredHostels(cachedHostels);
-      setLoading(false);
+      // For favorites, wait for hook to populate and let the favorites-effect apply filters
+      if (urlFilter === "favorites") {
+        setLoading(true);
+      } else {
+        setFilteredHostels(cachedHostels);
+        setLoading(false);
+      }
     } else {
       setLoading(true);
     }
@@ -116,6 +152,14 @@ const Hostels = () => {
       const res = await getAllHostels();
       const freshHostels = res.data || [];
       setHostels(freshHostels);
+
+      // If URL requests favorites, do not override filteredHostels here - the favorites effect will apply filters
+      if (urlFilter === "favorites") {
+        writeCachedHostels(freshHostels);
+        setLoading(true);
+        return;
+      }
+
       applyFilters(freshHostels, selectedFilter, searchTerm, filterGender);
       writeCachedHostels(freshHostels);
     } catch (err) {
@@ -154,7 +198,13 @@ const Hostels = () => {
 
   const handleSearch = (value) => {
     setSearchTerm(value);
-    applyFilters(hostels, selectedFilter, value, filterGender);
+    const params = new URLSearchParams(location.search);
+    const urlFilter = params.get("filter");
+    if (urlFilter === "favorites") {
+      applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, value, filterGender);
+    } else {
+      applyFilters(hostels, selectedFilter, value, filterGender);
+    }
   };
 
   const applyFilters = (hostelList, filter, search, gender) => {
@@ -230,7 +280,11 @@ const Hostels = () => {
 
   const handleGenderFilter = (gender) => {
     setFilterGender(gender);
-    if (selectedFilter === "All Hostels") {
+    const params = new URLSearchParams(location.search);
+    const urlFilter = params.get("filter");
+    if (urlFilter === "favorites") {
+      applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, searchTerm, gender);
+    } else if (selectedFilter === "All Hostels") {
       applyFilters(hostels, selectedFilter, searchTerm, gender);
     } else {
       applyFilters(filteredHostels, selectedFilter, searchTerm, gender);

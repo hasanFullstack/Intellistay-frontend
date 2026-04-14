@@ -4,7 +4,7 @@ import { getUserBookings, cancelBooking } from "../../api/booking.api";
 import { useAuth } from "../../auth/AuthContext";
 import { toast } from "react-toastify";
 import RecommendedHostels from "./RecommendedHostels";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useFavorites } from "../../hooks/useFavorites";
 import { Heart } from "lucide-react";
 import {
@@ -419,7 +419,12 @@ const UserDashboard = () => {
 
             {/* Saved Hostels */}
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Favorite Hostels</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Favorite Hostels</h2>
+                    <Link to="/hostels?filter=favorites" className="!text-[#2b5a84] hover:!underline !no-underline transition-all duration-200">
+                      View All
+                    </Link>
+              </div>
               {favHookLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#2b5a84] border-t-transparent"></div>
@@ -427,8 +432,9 @@ const UserDashboard = () => {
               ) : (favoriteHostels.length === 0 ? (
                 <div className="text-sm text-gray-500">You haven't saved any hostels yet.</div>
               ) : (
-                <div className="flex flex-wrap gap-6">
-                  {favoriteHostels.map((host) => {
+                <div>
+                  <div className="flex flex-wrap justify-between gap-6">
+                    {favoriteHostels.slice(0, 2).map((host) => {
                     const id = host?._id || host?.id;
                     const imageUrl = host?.images?.[0] || "https://via.placeholder.com/600x400";
                     const imageAlt = host?.name || "Hostel image";
@@ -477,7 +483,12 @@ const UserDashboard = () => {
                         </div>
                       </div>
                     );
-                  })}
+                    })}
+                  </div>
+                  {/* If more than 2 favorites, show a small hint */}
+                  {favoriteHostels.length > 2 && (
+                    <div className="mt-4 text-sm text-gray-500">Showing 2 of {favoriteHostels.length} saved hostels. Click "View All" to see all.</div>
+                  )}
                 </div>
               ))}
             </div>
