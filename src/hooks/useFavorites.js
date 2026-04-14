@@ -136,7 +136,7 @@ export const useFavorites = () => {
           newFavorites.delete(hostelId);
           setFavorites(newFavorites);
           saveCachedFavorites(newFavorites);
-          toast.success("Removed from favorites ❌");
+          toast.success("Removed from favorites");
         } else {
           // Add favorite
           if (user?._id) {
@@ -152,7 +152,7 @@ export const useFavorites = () => {
           newFavorites.add(hostelId);
           setFavorites(newFavorites);
           saveCachedFavorites(newFavorites);
-          toast.success("Added to favorites ❤️");
+          toast.success("Added to favorites");
         }
 
         // Refresh shared hostels list once after a successful toggle (server is source of truth)

@@ -19,6 +19,9 @@ import {
   Eye,
   X,
   Bell,
+  BookOpen,
+  Home,
+  Inbox,
 } from "lucide-react";
 
 const UserDashboard = () => {
@@ -201,8 +204,8 @@ const UserDashboard = () => {
             {/* Tab Navigation */}
             <div className="flex gap-2 bg-white p-1 rounded-xl w-fit shadow-sm">
               {[
-                { key: "bookings", label: "My Bookings", emoji: "📚" },
-                { key: "recommendations", label: "Recommended", emoji: "🏠" },
+                { key: "bookings", label: "My Bookings", icon: <BookOpen size={16} /> },
+                { key: "recommendations", label: "Recommended", icon: <Home size={16} /> },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -213,7 +216,7 @@ const UserDashboard = () => {
                     : "text-gray-600 hover:text-gray-900"
                     }`}
                 >
-                  {tab.emoji} {tab.label}
+                  <span className="inline-flex items-center gap-2">{tab.icon} {tab.label}</span>
                 </button>
               ))}
             </div>
@@ -235,7 +238,7 @@ const UserDashboard = () => {
                   </div>
                 ) : bookings.length === 0 ? (
                   <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
-                    <div className="text-5xl mb-4">📭</div>
+                    <Inbox size={56} className="mx-auto mb-4 text-gray-400" />
                     <h3 className="text-xl font-bold text-gray-900 mb-2">
                       No Bookings Yet
                     </h3>
