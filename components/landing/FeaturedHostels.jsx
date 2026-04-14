@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
-import { getAllHostels } from "../../src/api/hostel.api";
+import { useFavorites } from "../../src/hooks/useFavorites";
+import { useHostels } from "../../src/context/HostelsContext";
 import { getRoomsByHostel } from "../../src/api/room.api";
 
 const SEATER_OPTIONS = ["Any Seater", "Single", "2 Seater", "3 Seater", "4 Seater"];
@@ -30,14 +31,18 @@ const FeaturedHostels = () => {
   const [visibleHostels, setVisibleHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
   const [searchActive, setSearchActive] = useState(false);
 
   const fallbackImage =
     "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=400";
 
   const fetchHostels = async () => {
-    const res = await getAllHostels();
-    return Array.isArray(res?.data) ? res.data : [];
+    // Use context hostels if available
+    if (!ctxLoading && Array.isArray(ctxHostels) && ctxHostels.length > 0) return ctxHostels;
+    // Otherwise refresh from provider
+    await refresh();
+    return Array.isArray(ctxHostels) ? ctxHostels : [];
   };
 
   const buildRoomMeta = async (hostelList) => {
@@ -209,6 +214,8 @@ const FeaturedHostels = () => {
   };
 
   const primaryColor = "#235784";
+
+  const { toggleFavorite, isFavorited } = useFavorites();
 
   const isAnyFilterSelected =
     String(searchText || "").trim() !== "" ||
@@ -394,9 +401,23 @@ const FeaturedHostels = () => {
                       </span>
                     </div>
 
-                    {/* Heart Icon */}
-                    <button className="absolute top-3 right-3 bg-white/20 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-white hover:text-red-500 transition-colors">
-                      <Heart size={18} />
+                    {/* Favorite Button */}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await toggleFavorite(hostel._id);
+                      }}
+                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:!bg-gray-700 hover:text-red-500 transition-all duration-200"
+                      style={{
+                        borderRadius: "0.375rem",
+                        backgroundColor: "rgb(110 99 99 / 20%)"
+                      }}
+                    >
+                      <Heart
+                        size={18}
+                        fill={isFavorited(hostel._id) ? "#ef4444" : "none"}
+                        color={isFavorited(hostel._id) ? "#ef4444" : "white"}
+                      />
                     </button>
                   </div>
 
