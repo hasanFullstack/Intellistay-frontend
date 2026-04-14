@@ -612,16 +612,16 @@ const Hostels = () => {
                         e.stopPropagation();
                         toggleFavorite(hostel._id);
                       }}
-                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:bg-white hover:text-red-500 transition-all duration-200"
+                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:!bg-gray-500 hover:text-red-500 transition-all duration-200"
                       style={{
                         borderRadius: "0.375rem",
-                        backgroundColor: isFavorited(hostel._id) ? "rgba(239, 68, 68, 0.8)" : "rgba(255, 255, 255, 0.2)"
+                        backgroundColor: "rgba(66 57 57 / 20%)"
                       }}
                     >
                       <Heart
                         size={18}
-                        fill={isFavorited(hostel._id) ? "currentColor" : "none"}
-                        color="white"
+                        fill={isFavorited(hostel._id) ? "#ef4444" : "none"}
+                        color={isFavorited(hostel._id) ? "#ef4444" : "white"}
                       />
                     </button>
                   </div>
