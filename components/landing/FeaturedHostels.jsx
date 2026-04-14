@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
 import { useFavorites } from "../../src/hooks/useFavorites";
-import { getAllHostels } from "../../src/api/hostel.api";
+import { useHostels } from "../../src/context/HostelsContext";
 import { getRoomsByHostel } from "../../src/api/room.api";
 
 const SEATER_OPTIONS = ["Any Seater", "Single", "2 Seater", "3 Seater", "4 Seater"];
@@ -31,14 +31,18 @@ const FeaturedHostels = () => {
   const [visibleHostels, setVisibleHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
   const [searchActive, setSearchActive] = useState(false);
 
   const fallbackImage =
     "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=400";
 
   const fetchHostels = async () => {
-    const res = await getAllHostels();
-    return Array.isArray(res?.data) ? res.data : [];
+    // Use context hostels if available
+    if (!ctxLoading && Array.isArray(ctxHostels) && ctxHostels.length > 0) return ctxHostels;
+    // Otherwise refresh from provider
+    await refresh();
+    return Array.isArray(ctxHostels) ? ctxHostels : [];
   };
 
   const buildRoomMeta = async (hostelList) => {

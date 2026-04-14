@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import AOS from "aos";
-import { getAllHostels } from "../api/hostel.api";
+import { useHostels } from "../context/HostelsContext";
 import { getRoomsByHostel } from "../api/room.api";
 import HostelHero from "../../components/landing/HostelHero";
 import RoomSection from "../../components/landing/RoomSection";
@@ -14,17 +14,22 @@ const Home = () => {
   const [hostels, setHostels] = useState([]);
   const [hostelRooms, setHostelRooms] = useState({});
   const [loading, setLoading] = useState(true);
+  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
 
   useEffect(() => {
     AOS.init({ duration: 900, once: true });
 
     const fetchData = async () => {
       try {
-        const hostelRes = await getAllHostels();
-        const hostelsData = hostelRes.data || [];
-        setHostels(hostelsData);
+        // Prefer hostels from context
+        let hostelsData = Array.isArray(ctxHostels) && ctxHostels.length > 0 ? ctxHostels : [];
+        if (!hostelsData || hostelsData.length === 0) {
+          await refresh();
+          hostelsData = Array.isArray(ctxHostels) ? ctxHostels : [];
+        }
+        setHostels(hostelsData || []);
 
-        // Fetch rooms for each hostel
+        // Fetch rooms for each hostel (keep existing behavior)
         const roomsData = {};
         for (const hostel of hostelsData) {
           const roomRes = await getRoomsByHostel(hostel._id);

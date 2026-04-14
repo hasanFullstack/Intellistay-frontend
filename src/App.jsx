@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { HostelsProvider } from "./context/HostelsContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import "./App.css";
 
@@ -106,9 +107,11 @@ const AppWrapper = () => {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent authOpen={authOpen} setAuthOpen={setAuthOpen} />
-      </BrowserRouter>
+      <HostelsProvider>
+        <BrowserRouter>
+          <AppContent authOpen={authOpen} setAuthOpen={setAuthOpen} />
+        </BrowserRouter>
+      </HostelsProvider>
     </AuthProvider>
   );
 };

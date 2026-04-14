@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getAllHostels } from "../api/hostel.api";
+import { useHostels } from "../context/HostelsContext";
 import { Select, Pagination } from "antd";
 import "antd/dist/antd.css";
 import "./Hostels.css";
@@ -85,6 +85,7 @@ const Hostels = () => {
   const [filterGender, setFilterGender] = useState("all");
   const { user } = useAuth();
   const { isFavorited, toggleFavorite, favoriteHostels, loading: favLoading } = useFavorites();
+  const { hostels: ctxHostels, loading: ctxLoading, refresh: refreshHostels } = useHostels();
   const location = useLocation();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -149,8 +150,12 @@ const Hostels = () => {
     }
 
     try {
-      const res = await getAllHostels();
-      const freshHostels = res.data || [];
+      // Prefer hostels from HostelsContext when available
+      let freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
+      if (!freshHostels || freshHostels.length === 0) {
+        await refreshHostels();
+        freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
+      }
       setHostels(freshHostels);
 
       // If URL requests favorites, do not override filteredHostels here - the favorites effect will apply filters
