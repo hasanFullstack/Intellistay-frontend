@@ -10,15 +10,10 @@ import {
 import { toast } from "react-toastify";
 
 const FAVORITES_CACHE_KEY = "intellistay.favorites";
-// Shared module-level cache to avoid duplicate network requests across hook instances
-let sharedHostels = null;
-let sharedForUser = null;
-let sharedPromise = null;
 
 export const useFavorites = () => {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState(new Set());
-  const [hostelList, setHostelList] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Get cached favorites from localStorage
@@ -43,66 +38,41 @@ export const useFavorites = () => {
   // Initialize favorites on mount and when user changes
   useEffect(() => {
     const initFavorites = async () => {
-      // Not logged in: use cached favorites
-      if (!user?._id) {
-        setFavorites(getCachedFavorites());
-        setHostelList([]);
-        setLoading(false);
-        return;
-      }
-
-      // If shared data already loaded for this user, reuse it
-      if (sharedHostels && sharedForUser === String(user._id)) {
-        const ids = sharedHostels.map((h) => h._id).filter(Boolean);
-        setFavorites(new Set(ids));
-        setHostelList(sharedHostels);
-        setLoading(false);
-        return;
-      }
-
-      // Avoid duplicate simultaneous requests by reusing sharedPromise
-      try {
-        setLoading(true);
-
-        // First, sync any cached favorites to database
-        const cached = getCachedFavorites();
-        if (cached.size > 0) {
-          try {
-            await syncCachedFavorites(Array.from(cached));
-          } catch (error) {
-            console.error("Failed to sync cached favorites:", error);
+      if (user?._id) {
+        // User is logged in
+        try {
+          setLoading(true);
+          
+          // First, sync any cached favorites to database
+          const cached = getCachedFavorites();
+          if (cached.size > 0) {
+            try {
+              await syncCachedFavorites(Array.from(cached));
+            } catch (error) {
+              console.error("Failed to sync cached favorites:", error);
+            }
+            // Clear cache after syncing
+            localStorage.removeItem(FAVORITES_CACHE_KEY);
           }
-          localStorage.removeItem(FAVORITES_CACHE_KEY);
+
+          // Then fetch user's favorites from database
+          const response = await getUserFavorites();
+          // Response is an array of hostel objects from populate()
+          const hostels = Array.isArray(response?.data) ? response.data : [];
+          const hostelIds = hostels.map((hostel) => hostel._id).filter(Boolean);
+          setFavorites(new Set(hostelIds));
+          // Save to localStorage as backup
+          saveCachedFavorites(new Set(hostelIds));
+        } catch (error) {
+          console.error("Failed to load favorites:", error);
+          // Fallback to cached if API fails
+          setFavorites(getCachedFavorites());
+        } finally {
+          setLoading(false);
         }
-
-        if (!sharedPromise) {
-          console.debug("[useFavorites] initiating getUserFavorites request");
-          sharedPromise = getUserFavorites();
-        } else {
-          console.debug("[useFavorites] reusing sharedPromise for favorites request");
-        }
-
-        const response = await sharedPromise;
-        // clear the promise so future toggles can refresh
-        sharedPromise = null;
-
-        const hostels = Array.isArray(response?.data) ? response.data : [];
-        sharedHostels = hostels;
-        sharedForUser = String(user._id);
-
-        const hostelIds = hostels.map((hostel) => hostel._id).filter(Boolean);
-        setFavorites(new Set(hostelIds));
-        setHostelList(hostels);
-        saveCachedFavorites(new Set(hostelIds));
-        console.debug(
-          `[useFavorites] loaded ${hostels.length} favorite hostels for user=${user?._id}`
-        );
-      } catch (error) {
-        console.error("Failed to load favorites:", error);
-        // Fallback to cached if API fails
+      } else {
+        // User not logged in - use cached favorites
         setFavorites(getCachedFavorites());
-        setHostelList([]);
-      } finally {
         setLoading(false);
       }
     };
@@ -136,7 +106,7 @@ export const useFavorites = () => {
           newFavorites.delete(hostelId);
           setFavorites(newFavorites);
           saveCachedFavorites(newFavorites);
-          toast.success("Removed from favorites");
+          toast.success("Removed from favorites ❌");
         } else {
           // Add favorite
           if (user?._id) {
@@ -152,22 +122,7 @@ export const useFavorites = () => {
           newFavorites.add(hostelId);
           setFavorites(newFavorites);
           saveCachedFavorites(newFavorites);
-          toast.success("Added to favorites");
-        }
-
-        // Refresh shared hostels list once after a successful toggle (server is source of truth)
-        try {
-          if (user?._id) {
-            const res = await getUserFavorites();
-            const hostels = Array.isArray(res?.data) ? res.data : [];
-            sharedHostels = hostels;
-            const hostelIds = hostels.map((h) => h._id).filter(Boolean);
-            setFavorites(new Set(hostelIds));
-            setHostelList(hostels);
-            saveCachedFavorites(new Set(hostelIds));
-          }
-        } catch (err) {
-          console.error("Failed refresh favorites after toggle:", err);
+          toast.success("Added to favorites ❤️");
         }
       } catch (error) {
         console.error("Toggle favorite error:", error);
@@ -220,7 +175,6 @@ export const useFavorites = () => {
 
   return {
     favorites,
-    favoriteHostels: hostelList,
     isFavorited,
     toggleFavorite,
     addMultipleFavorites,

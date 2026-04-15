@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useHostels } from "../context/HostelsContext";
+import { useNavigate } from "react-router-dom";
+import { getAllHostels } from "../api/hostel.api";
 import { Select, Pagination } from "antd";
 import "antd/dist/antd.css";
 import "./Hostels.css";
@@ -84,9 +84,7 @@ const Hostels = () => {
   const [selectedFilter, setSelectedFilter] = useState("All Hostels");
   const [filterGender, setFilterGender] = useState("all");
   const { user } = useAuth();
-  const { isFavorited, toggleFavorite, favoriteHostels, loading: favLoading } = useFavorites();
-  const { hostels: ctxHostels, loading: ctxLoading, refresh: refreshHostels } = useHostels();
-  const location = useLocation();
+  const { isFavorited, toggleFavorite } = useFavorites();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Reduced from 8 for faster initial render
@@ -95,34 +93,6 @@ const Hostels = () => {
   useEffect(() => {
     loadHostels();
   }, []);
-
-  // When URL requests favorites, apply filters on favoriteHostels once hook loads
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const urlFilter = params.get("filter");
-    if (urlFilter !== "favorites") return;
-
-    if (favLoading) {
-      setLoading(true);
-      return;
-    }
-
-    // Apply search/gender/selectedFilter on favoriteHostels
-    applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, searchTerm, filterGender);
-    setLoading(false);
-  }, [location.search, favoriteHostels, favLoading, selectedFilter, searchTerm, filterGender]);
-
-  // If navigated with ?filter=favorites, show user's favorite hostels
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const filter = params.get("filter");
-    if (filter === "favorites") {
-      // show favorites (hook provides favoriteHostels)
-      setLoading(false);
-      setFilteredHostels(Array.isArray(favoriteHostels) ? favoriteHostels : []);
-      setCurrentPage(1);
-    }
-  }, [location.search, favoriteHostels]);
 
   useEffect(() => {
     // Prefetch all filter data when user role is student
@@ -133,38 +103,19 @@ const Hostels = () => {
 
   const loadHostels = async () => {
     const cachedHostels = readCachedHostels();
-    const params = new URLSearchParams(location.search);
-    const urlFilter = params.get("filter");
 
     if (cachedHostels?.length) {
       setHostels(cachedHostels);
-      // For favorites, wait for hook to populate and let the favorites-effect apply filters
-      if (urlFilter === "favorites") {
-        setLoading(true);
-      } else {
-        setFilteredHostels(cachedHostels);
-        setLoading(false);
-      }
+      setFilteredHostels(cachedHostels);
+      setLoading(false);
     } else {
       setLoading(true);
     }
 
     try {
-      // Prefer hostels from HostelsContext when available
-      let freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
-      if (!freshHostels || freshHostels.length === 0) {
-        await refreshHostels();
-        freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
-      }
+      const res = await getAllHostels();
+      const freshHostels = res.data || [];
       setHostels(freshHostels);
-
-      // If URL requests favorites, do not override filteredHostels here - the favorites effect will apply filters
-      if (urlFilter === "favorites") {
-        writeCachedHostels(freshHostels);
-        setLoading(true);
-        return;
-      }
-
       applyFilters(freshHostels, selectedFilter, searchTerm, filterGender);
       writeCachedHostels(freshHostels);
     } catch (err) {
@@ -203,13 +154,7 @@ const Hostels = () => {
 
   const handleSearch = (value) => {
     setSearchTerm(value);
-    const params = new URLSearchParams(location.search);
-    const urlFilter = params.get("filter");
-    if (urlFilter === "favorites") {
-      applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, value, filterGender);
-    } else {
-      applyFilters(hostels, selectedFilter, value, filterGender);
-    }
+    applyFilters(hostels, selectedFilter, value, filterGender);
   };
 
   const applyFilters = (hostelList, filter, search, gender) => {
@@ -285,11 +230,7 @@ const Hostels = () => {
 
   const handleGenderFilter = (gender) => {
     setFilterGender(gender);
-    const params = new URLSearchParams(location.search);
-    const urlFilter = params.get("filter");
-    if (urlFilter === "favorites") {
-      applyFilters(Array.isArray(favoriteHostels) ? favoriteHostels : [], selectedFilter, searchTerm, gender);
-    } else if (selectedFilter === "All Hostels") {
+    if (selectedFilter === "All Hostels") {
       applyFilters(hostels, selectedFilter, searchTerm, gender);
     } else {
       applyFilters(filteredHostels, selectedFilter, searchTerm, gender);
@@ -671,16 +612,16 @@ const Hostels = () => {
                         e.stopPropagation();
                         toggleFavorite(hostel._id);
                       }}
-                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:!bg-gray-500 hover:text-red-500 transition-all duration-200"
+                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:bg-white hover:text-red-500 transition-all duration-200"
                       style={{
                         borderRadius: "0.375rem",
-                        backgroundColor: "rgba(66 57 57 / 20%)"
+                        backgroundColor: isFavorited(hostel._id) ? "rgba(239, 68, 68, 0.8)" : "rgba(255, 255, 255, 0.2)"
                       }}
                     >
                       <Heart
                         size={18}
-                        fill={isFavorited(hostel._id) ? "#ef4444" : "none"}
-                        color={isFavorited(hostel._id) ? "#ef4444" : "white"}
+                        fill={isFavorited(hostel._id) ? "currentColor" : "none"}
+                        color="white"
                       />
                     </button>
                   </div>

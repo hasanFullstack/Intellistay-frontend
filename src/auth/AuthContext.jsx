@@ -5,7 +5,6 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [initializing, setInitializing] = useState(true);
 
   // Initialize user from localStorage on mount
   useEffect(() => {
@@ -18,8 +17,6 @@ export const AuthProvider = ({ children }) => {
         toast.error("Failed to restore user session");
       }
     }
-    // Mark initialization complete whether or not we restored a user
-    setInitializing(false);
   }, []);
 
   const login = (data) => {
@@ -41,7 +38,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, completeQuiz, initializing }}
+      value={{ user, login, logout, completeQuiz }}
     >
       {children}
     </AuthContext.Provider>

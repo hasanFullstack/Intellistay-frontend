@@ -4,10 +4,6 @@ import { useAuth } from "./AuthContext";
 const ProtectedRoute = ({ role, requiresQuiz = true, children }) => {
   const { user } = useAuth();
 
-  // Wait for auth initialization to complete before deciding
-  const { initializing } = useAuth();
-  if (initializing) return null;
-
   // Not logged in
   if (!user) return <Navigate to="/login" />;
 

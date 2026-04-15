@@ -4,10 +4,6 @@
   padding: 3rem 0;
 }
 
-.contact-row {
-  min-height: 100vh;
-}
-
 /* Left Section */
 .contact-info-section {
   padding: 3rem 2rem;
@@ -315,21 +311,16 @@
 
 @media (max-width: 768px) {
   .contact-page {
-    padding: 0.5rem 0;
-  }
-
-  .contact-row {
-    min-height: auto;
-    align-items: flex-start;
+    padding: 1rem 0;
   }
 
   .contact-info-section {
-    padding: 0.75rem 1rem 0.5rem;
-    margin-bottom: 0;
+    padding: 1.5rem 1rem;
+    margin-bottom: 1rem;
   }
 
   .contact-form-section {
-    padding: 0.75rem 1rem 1rem;
+    padding: 1.5rem 1rem;
   }
 
   .contact-title {
@@ -342,7 +333,6 @@
 
   .contact-form-wrapper {
     padding: 1.5rem;
-    border-radius: 12px;
   }
 
   .contact-details {

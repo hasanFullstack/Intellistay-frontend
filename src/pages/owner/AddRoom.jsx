@@ -4,7 +4,6 @@ import { toast } from "react-toastify";
 
 const AddRoom = ({ hostelId, onSuccess }) => {
   const [data, setData] = useState({
-    roomLabel: "",
     roomType: "Shared",
     totalBeds: 4,
     pricePerBed: 5000,
@@ -18,7 +17,7 @@ const AddRoom = ({ hostelId, onSuccess }) => {
   const submit = async (e) => {
     e.preventDefault();
     if (!data.roomType || !data.totalBeds || !data.pricePerBed) {
-      setError("Room type, bed count and price are required");
+      setError("All fields are required");
       return;
     }
 
@@ -32,7 +31,6 @@ const AddRoom = ({ hostelId, onSuccess }) => {
       setError("");
       await addRoom(hostelId, data);
       setData({
-        roomLabel: "",
         roomType: "Shared",
         totalBeds: 4,
         pricePerBed: 5000,
@@ -103,21 +101,6 @@ const AddRoom = ({ hostelId, onSuccess }) => {
           <option>Shared</option>
           <option>Deluxe</option>
         </select>
-      </div>
-
-      <div className="mb-3">
-        <label htmlFor="roomLabel" className="form-label fw-semibold">
-          Room Label (optional)
-        </label>
-        <input
-          id="roomLabel"
-          type="text"
-          className="form-control form-control-lg"
-          placeholder="e.g., A101, Room 1, Block B"
-          value={data.roomLabel}
-          onChange={(e) => setData({ ...data, roomLabel: e.target.value })}
-        />
-        <small className="text-muted d-block mt-1">Keep a short label to distinguish multiple rooms of the same type.</small>
       </div>
 
       <div className="mb-3">
