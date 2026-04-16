@@ -241,7 +241,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
   };
 
   return (
-    <main className="flex-1 p-8 lg:p-12 max-w-7xl mx-auto bg-[#faf8ff] font-sans text-[#131b2e]">
+    <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto bg-[#faf8ff] font-sans text-[#131b2e]">
       <header className="mb-12">
         <h1 className="text-4xl lg:text-5xl font-black tracking-tight mb-2 font-headline">
           Account Settings

@@ -290,7 +290,7 @@ export default function OwnerRoomDashboard({
   };
 
   return (
-    <div className="p-8 space-y-8 flex-1 bg-[#faf8ff] font-sans text-[#131b2e] pt-28">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 bg-[#faf8ff] font-sans text-[#131b2e]">
       <div className="flex justify-between items-end">
         <div className="space-y-1">
           <h2 className="text-4xl font-extrabold tracking-tight">Room Inventory</h2>
