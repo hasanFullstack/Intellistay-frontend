@@ -1,9 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import OwnerSidebar from "../../../components/owner/OwnerSidebar";
-import { useAuth } from "../../auth/AuthContext";
 import { getMyHostels } from "../../api/hostel.api";
 import { getRoomsByHostel } from "../../api/room.api";
 import { getOwnerBookings } from "../../api/booking.api";
+import AddHostel from "./AddHostel";
+import OwnerEnvironmentModal from "./OwnerEnvironmentModal";
+import HostelPortfolio from "./HostelPortfolio";
+import OwnerRoomDashboard from "./OwnerRoomDashboard";
+import OwnerSettingsPage from "./OwnerSettingsPage";
+import OwnerBookingsCentral from "./OwnerBookingsCentral";
+import { ArrowUp } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -15,9 +21,9 @@ const KpiCard = ({ title, value, badge, icon, trend, trendValue, colorClass = "t
       {badge && <span className="text-primary text-xs font-bold bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
       {icon && <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span>}
       {trend && (
-        <span className={`${trend === 'up' ? 'text-green-600' : 'text-slate-400'} text-xs font-bold flex items-center`}>
-          {trend === 'up' && <span className="material-symbols-outlined text-sm">arrow_upward</span>}
-          {trendValue}
+        <span className={`${trend === 'up' ? 'text-green-600' : 'text-slate-500'} text-xs font-bold flex items-center gap-1`}>
+          {trend === 'up' ? <ArrowUp size={14} strokeWidth={2.5} /> : null}
+          {trend === 'up' ? trendValue : (trendValue || 'Stable')}
         </span>
       )}
     </div>
@@ -38,39 +44,70 @@ const InsightCard = ({ title, description, borderClass, type, actionText }) => (
 );
 
 export default function OwnerDashboard() {
-  const { user } = useAuth();
   const [hostels, setHostels] = useState([]);
   const [roomsByHostel, setRoomsByHostel] = useState({});
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAddHostel, setShowAddHostel] = useState(false);
+  const [quizHostelId, setQuizHostelId] = useState(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const hRes = await getMyHostels();
+      const hostelsData = hRes?.data || [];
+      setHostels(hostelsData);
+
+      const roomPromises = hostelsData.map((h) =>
+        getRoomsByHostel(h._id).then((r) => ({ id: h._id, rooms: r.data || [] })).catch(() => ({ id: h._id, rooms: [] }))
+      );
+      const roomsResults = await Promise.all(roomPromises);
+      const map = {};
+      roomsResults.forEach((r) => (map[r.id] = r.rooms));
+      setRoomsByHostel(map);
+
+      const bRes = await getOwnerBookings();
+      setBookings(bRes?.data || []);
+    } catch (err) {
+      toast.error("Failed to load owner dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const hRes = await getMyHostels();
-        const hostelsData = hRes?.data || [];
-        setHostels(hostelsData);
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-        const roomPromises = hostelsData.map((h) =>
-          getRoomsByHostel(h._id).then((r) => ({ id: h._id, rooms: r.data || [] })).catch(() => ({ id: h._id, rooms: [] }))
-        );
-        const roomsResults = await Promise.all(roomPromises);
-        const map = {};
-        roomsResults.forEach((r) => (map[r.id] = r.rooms));
-        setRoomsByHostel(map);
+  const getCreatedHostelId = (createdHostel) => {
+    if (!createdHostel) return null;
+    return (
+      createdHostel._id ||
+      createdHostel.id ||
+      createdHostel.hostel?._id ||
+      createdHostel.hostel?.id ||
+      null
+    );
+  };
 
-        const bRes = await getOwnerBookings();
-        setBookings(bRes?.data || []);
-      } catch (err) {
-        toast.error('Failed to load owner dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleAddHostelSuccess = async (createdHostel) => {
+    const createdHostelId = getCreatedHostelId(createdHostel);
+    setShowAddHostel(false);
+    await loadDashboardData();
 
-    load();
-  }, []);
+    if (createdHostelId) {
+      setQuizHostelId(createdHostelId);
+      toast.info("Complete the environment quiz for this hostel.");
+    } else {
+      toast.warning("Hostel added, but quiz could not open automatically.");
+    }
+  };
+
+  const handleQuizClose = async () => {
+    setQuizHostelId(null);
+    await loadDashboardData();
+  };
 
   const totalRooms = useMemo(() => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0), [roomsByHostel]);
   const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
@@ -82,7 +119,35 @@ export default function OwnerDashboard() {
 
   return (
     <div className="min-h-screen relative bg-[#faf8ff] text-[#131b2e] font-sans">
-      <OwnerSidebar onAdd={() => { /* open add flow, left as future work */ }} />
+      <OwnerSidebar
+        onAdd={() => setShowAddHostel(true)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+
+      {showAddHostel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold">Add New Hostel</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddHostel(false)}
+                className="rounded-lg px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6">
+              <AddHostel onSuccess={handleAddHostelSuccess} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {quizHostelId && (
+        <OwnerEnvironmentModal hostelId={quizHostelId} onClose={handleQuizClose} />
+      )}
 
       <main className="ml-64 min-h-screen">
         {/* <header className="fixed top-0 right-0 left-64 z-40 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200 shadow-sm">
@@ -106,7 +171,36 @@ export default function OwnerDashboard() {
           </div>
         </header> */}
 
-        <div className="pt-28 pb-12 px-8">
+        {activeTab === "hostels" ? (
+          <HostelPortfolio
+            hostels={hostels}
+            roomsByHostel={roomsByHostel}
+            bookings={bookings}
+            loading={loading}
+            onAddHostel={() => setShowAddHostel(true)}
+            onHostelUpdated={loadDashboardData}
+          />
+        ) : activeTab === "rooms" ? (
+          <OwnerRoomDashboard
+            hostels={hostels}
+            roomsByHostel={roomsByHostel}
+            bookings={bookings}
+            loading={loading}
+            onDataRefresh={loadDashboardData}
+          />
+        ) : activeTab === "bookings" ? (
+          <OwnerBookingsCentral
+            bookings={bookings}
+            loading={loading}
+            onRefresh={loadDashboardData}
+          />
+        ) : activeTab === "settings" ? (
+          <OwnerSettingsPage
+            hostels={hostels}
+            onDataRefresh={loadDashboardData}
+          />
+        ) : (
+          <div className="pt-28 pb-12 px-8">
           <div className="mb-10">
             <h2 className="text-4xl font-extrabold tracking-tight mb-2">Portfolio Overview</h2>
             <div className="flex items-center space-x-2">
@@ -187,7 +281,8 @@ export default function OwnerDashboard() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
       </main>
       <ToastContainer position="top-right" />
     </div>
