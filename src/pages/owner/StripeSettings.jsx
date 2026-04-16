@@ -36,7 +36,7 @@ const StripeSettings = () => {
     e.preventDefault();
     if (!publicKey || !secretKey) {
       toast.error("Public and Secret keys are required");
-      return;
+       return;
     }
 
     try {
