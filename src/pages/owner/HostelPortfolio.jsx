@@ -193,7 +193,7 @@ export default function HostelPortfolio({
   };
 
   return (
-    <section className="pt-28 pb-12 px-8">
+    <section className="pb-12 px-4 sm:px-6 lg:px-8 pt-6 lg:pt-10">
       <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-4xl font-extrabold text-on-surface tracking-tight mb-2">Hostel Portfolio</h2>

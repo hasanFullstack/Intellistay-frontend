@@ -9,7 +9,7 @@ import HostelPortfolio from "./HostelPortfolio";
 import OwnerRoomDashboard from "./OwnerRoomDashboard";
 import OwnerSettingsPage from "./OwnerSettingsPage";
 import OwnerBookingsCentral from "./OwnerBookingsCentral";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Menu } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -51,6 +51,7 @@ export default function OwnerDashboard() {
   const [showAddHostel, setShowAddHostel] = useState(false);
   const [quizHostelId, setQuizHostelId] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -117,13 +118,66 @@ export default function OwnerDashboard() {
 
   const recentBookingRows = bookings.slice(0, 6);
 
+  const tabLabel = {
+    dashboard: "Portfolio Overview",
+    hostels: "My Hostels",
+    rooms: "Rooms",
+    bookings: "Bookings Central",
+    settings: "Settings",
+  };
+
   return (
-    <div className="min-h-screen relative bg-[#faf8ff] text-[#131b2e] font-sans">
-      <OwnerSidebar
-        onAdd={() => setShowAddHostel(true)}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+    <div className="bg-[#faf8ff] text-[#131b2e] font-sans">
+
+      {/* ── Owner sub-header (below global Navbar, always in flow) ── */}
+      <div className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-12">
+          {/* Left: hamburger (mobile) + breadcrumb */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+              <span className="text-[#0058be] font-bold">Owner</span>
+              <span>/</span>
+              <span className="text-slate-700 font-semibold capitalize">{tabLabel[activeTab] || "Dashboard"}</span>
+            </div>
+          </div>
+          {/* Right: Add Hostel CTA */}
+          <button
+            type="button"
+            onClick={() => setShowAddHostel(true)}
+            className="hidden sm:flex items-center gap-2 bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow hover:opacity-90 transition-opacity"
+          >
+            <span className="text-base leading-none">+</span> Add Hostel
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main two-column layout ── */}
+      <div className="flex min-h-[calc(100vh-theme(spacing.12))] relative">
+
+        {/* Backdrop (mobile only) */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        <OwnerSidebar
+          onAdd={() => setShowAddHostel(true)}
+          activeTab={activeTab}
+          onTabChange={(tab) => { setActiveTab(tab); setSidebarOpen(false); }}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
 
       {showAddHostel && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -149,7 +203,7 @@ export default function OwnerDashboard() {
         <OwnerEnvironmentModal hostelId={quizHostelId} onClose={handleQuizClose} />
       )}
 
-      <main className="ml-64 min-h-screen">
+      <main className="flex-1 min-w-0">
         {/* <header className="fixed top-0 right-0 left-64 z-40 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200 shadow-sm">
           <div className="flex justify-between items-center w-full px-8 h-full">
             <div className="flex items-center flex-1 max-w-xl">
@@ -200,16 +254,16 @@ export default function OwnerDashboard() {
             onDataRefresh={loadDashboardData}
           />
         ) : (
-          <div className="pt-28 pb-12 px-8">
+          <div className="pt-6 lg:pt-10 pb-12 px-4 sm:px-6 lg:px-8">
           <div className="mb-10">
-            <h2 className="text-4xl font-extrabold tracking-tight mb-2">Portfolio Overview</h2>
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2">Portfolio Overview</h2>
             <div className="flex items-center space-x-2">
               <span className="bg-blue-100 px-3 py-1 rounded-full text-blue-700 text-xs font-semibold">Live Monitoring</span>
               <span className="text-slate-500 text-sm">Last updated: 2 minutes ago</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6 mb-10">
             <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
             <KpiCard title="Total Rooms" value={totalRooms} icon="king_bed" />
             <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
@@ -226,7 +280,7 @@ export default function OwnerDashboard() {
                     <h3 className="text-xl font-bold mb-1">Revenue Performance</h3>
                     <p className="text-sm text-slate-500">Comparative analysis of gross earnings</p>
                   </div>
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
+                  <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg">
                     <button className="px-4 py-1 text-xs font-bold bg-white rounded-md shadow-sm">Revenue</button>
                     <button className="px-4 py-1 text-xs font-bold text-slate-500">Occupancy</button>
                   </div>
@@ -284,6 +338,7 @@ export default function OwnerDashboard() {
           </div>
         )}
       </main>
+      </div>
       <ToastContainer position="top-right" />
     </div>
   );

@@ -262,7 +262,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
   };
 
   return (
-    <main className="flex-1 p-8 bg-[#faf8ff] min-h-screen font-sans text-[#131b2e] pt-28">
+    <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-[#faf8ff] min-h-screen font-sans text-[#131b2e]">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div className="space-y-1">
           <h1 className="text-4xl font-extrabold tracking-tight font-headline">Bookings Central</h1>
