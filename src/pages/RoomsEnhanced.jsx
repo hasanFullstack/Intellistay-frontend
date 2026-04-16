@@ -5,7 +5,7 @@ import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { useHostels } from "../context/HostelsContext";
+import { getAllHostels } from "../api/hostel.api";
 import { getAllRooms, getRoomOccupants } from "../api/room.api";
 import "./Rooms.css";
 
@@ -156,25 +156,18 @@ const RoomsEnhanced = () => {
     if (preselected) setSelectedHostel(preselected);
   }, [searchParams]);
 
-  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
-
   useEffect(() => {
-    const load = async () => {
+    const loadHostels = async () => {
       try {
-        if (!ctxLoading && Array.isArray(ctxHostels) && ctxHostels.length > 0) {
-          setHostels(ctxHostels);
-        } else {
-          await refresh();
-          setHostels(Array.isArray(ctxHostels) ? ctxHostels : []);
-        }
+        const res = await getAllHostels();
+        setHostels(Array.isArray(res.data) ? res.data : []);
       } catch {
         toast.error("Failed to load hostels");
       }
     };
 
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxLoading]);
+    loadHostels();
+  }, []);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

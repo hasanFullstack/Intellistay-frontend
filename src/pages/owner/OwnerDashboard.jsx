@@ -1,195 +1,1136 @@
-import React, { useEffect, useMemo, useState } from "react";
-import OwnerSidebar from "../../../components/owner/OwnerSidebar";
+import { useEffect, useState } from "react";
+import { getMyHostels, deleteHostel } from "../../api/hostel.api";
+import {
+  getRoomsByHostel,
+  deleteRoom,
+  getRoomSuggestedPrice,
+  updateRoom,
+} from "../../api/room.api";
+import {
+  getOwnerBookings,
+  acceptBooking,
+  rejectBooking,
+} from "../../api/booking.api";
 import { useAuth } from "../../auth/AuthContext";
-import { getMyHostels } from "../../api/hostel.api";
-import { getRoomsByHostel } from "../../api/room.api";
-import { getOwnerBookings } from "../../api/booking.api";
-import { toast, ToastContainer } from "react-toastify";
+import AddHostel from "./AddHostel";
+import AddRoom from "./AddRoom";
+import OwnerEnvironmentModal from "./OwnerEnvironmentModal";
+import "./OwnerDashboard.css";
+import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import StripeSettings from "./StripeSettings";
 
-const KpiCard = ({ title, value, badge, icon, trend, trendValue, colorClass = "text-primary" }) => (
-  <div className="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between border border-slate-100">
-    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-4">{title}</p>
-    <div className="flex items-end justify-between">
-      <span className="text-3xl font-extrabold">{value}</span>
-      {badge && <span className="text-primary text-xs font-bold bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
-      {icon && <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span>}
-      {trend && (
-        <span className={`${trend === 'up' ? 'text-green-600' : 'text-slate-400'} text-xs font-bold flex items-center`}>
-          {trend === 'up' && <span className="material-symbols-outlined text-sm">arrow_upward</span>}
-          {trendValue}
-        </span>
-      )}
-    </div>
-  </div>
-);
-
-const InsightCard = ({ title, description, borderClass, type, actionText }) => (
-  <div className={`bg-white/40 backdrop-blur-sm p-5 rounded-lg border-l-4 ${borderClass} shadow-sm`}>
-    <p className="text-sm font-semibold mb-2">{title}</p>
-    <p className="text-xs text-slate-600 leading-relaxed">{description}</p>
-    <div className="mt-4 flex justify-between items-center">
-      <span className={`text-[10px] font-extrabold uppercase tracking-widest ${borderClass.replace('border-', 'text-')}`}>{type}</span>
-      {actionText && (
-        <button className="text-[10px] font-bold text-slate-500 bg-slate-100 rounded-md px-2 py-1 hover:bg-slate-200 transition-colors">{actionText}</button>
-      )}
-    </div>
-  </div>
-);
-
-export default function OwnerDashboard() {
+const OwnerDashboard = () => {
   const { user } = useAuth();
   const [hostels, setHostels] = useState([]);
-  const [roomsByHostel, setRoomsByHostel] = useState({});
+  const [hostelRooms, setHostelRooms] = useState({});
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [showAddHostelModal, setShowAddHostelModal] = useState(false);
+  const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+  const [selectedHostelId, setSelectedHostelId] = useState(null);
+  const [expandedHostelId, setExpandedHostelId] = useState(null);
+  const [activeTab, setActiveTab] = useState("hostels");
+  const [bookingFilter, setBookingFilter] = useState("all");
+  const [showEnvModal, setShowEnvModal] = useState(false);
+  const [envHostelId, setEnvHostelId] = useState(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'hostel'|'room', id, hostelId, name }
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // AI Pricing State
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [pricingData, setPricingData] = useState(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingTargetRoom, setPricingTargetRoom] = useState(null);
+
+  const loadHostels = async () => {
+    try {
+      setLoading(true);
+      const res = await getMyHostels();
+      setHostels(res.data || []);
+    } catch (err) {
+      toast.error("Failed to load hostels");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRoomsForHostel = async (hostelId) => {
+    try {
+      const res = await getRoomsByHostel(hostelId);
+      setHostelRooms((prev) => ({
+        ...prev,
+        [hostelId]: res.data || [],
+      }));
+    } catch (err) {
+      toast.error("Failed to load rooms");
+    }
+  };
+
+  const loadBookings = async () => {
+    try {
+      setBookingsLoading(true);
+      const res = await getOwnerBookings();
+      setBookings(res.data || []);
+    } catch (err) {
+      toast.error("Failed to load bookings");
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  const handleExpandHostel = (hostelId) => {
+    setExpandedHostelId((prev) => {
+      const willExpand = prev !== hostelId;
+      if (willExpand && !hostelRooms[hostelId]) {
+        loadRoomsForHostel(hostelId);
+      }
+      return willExpand ? hostelId : null;
+    });
+  };
+
+  const handleGetAIPricing = async (roomId, hostelId, currentPrice) => {
+    setPricingTargetRoom({ id: roomId, hostelId });
+    setPricingData(null);
+    setShowPricingModal(true);
+    setPricingLoading(true);
+
+    try {
+      const res = await getRoomSuggestedPrice(roomId);
+      setPricingData(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.msg || "Failed to fetch AI pricing");
+      setShowPricingModal(false);
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleApplyAIPricing = async () => {
+    if (!pricingTargetRoom || !pricingData) return;
+
+    try {
+      await updateRoom(pricingTargetRoom.id, {
+        pricePerBed: pricingData.suggested_price,
+      });
+      toast.success(`Price updated to Rs ${pricingData.suggested_price}`);
+      setShowPricingModal(false);
+      loadRoomsForHostel(pricingTargetRoom.hostelId); // refresh room list
+    } catch (err) {
+      toast.error("Failed to update price");
+    }
+  };
+
+  const handleDeleteRoom = (roomId, hostelId, name) => {
+    setDeleteTarget({
+      type: "room",
+      id: roomId,
+      hostelId,
+      name: name || "room",
+    });
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteHostel = (hostelId, name) => {
+    setDeleteTarget({ type: "hostel", id: hostelId, name: name || "hostel" });
+    setDeleteModalVisible(true);
+  };
+
+  const performDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      if (deleteTarget.type === "hostel") {
+        await deleteHostel(deleteTarget.id);
+        await loadHostels();
+        toast.success(`${deleteTarget.name} deleted successfully`);
+      } else if (deleteTarget.type === "room") {
+        await deleteRoom(deleteTarget.id);
+        await loadRoomsForHostel(deleteTarget.hostelId);
+        toast.success(`${deleteTarget.name} deleted successfully`);
+      }
+      setDeleteModalVisible(false);
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(`Failed to delete ${deleteTarget?.name || "item"}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleAcceptBooking = async (bookingId) => {
+    try {
+      await acceptBooking(bookingId);
+      toast.success("Booking accepted successfully!");
+      loadBookings();
+    } catch (err) {
+      toast.error("Failed to accept booking");
+    }
+  };
+
+  const handleRejectBooking = async (bookingId) => {
+    if (window.confirm("Are you sure you want to reject this booking?")) {
+      try {
+        await rejectBooking(bookingId);
+        toast.success("Booking rejected successfully!");
+        loadBookings();
+      } catch (err) {
+        toast.error("Failed to reject booking");
+      }
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const hRes = await getMyHostels();
-        const hostelsData = hRes?.data || [];
-        setHostels(hostelsData);
-
-        const roomPromises = hostelsData.map((h) =>
-          getRoomsByHostel(h._id).then((r) => ({ id: h._id, rooms: r.data || [] })).catch(() => ({ id: h._id, rooms: [] }))
-        );
-        const roomsResults = await Promise.all(roomPromises);
-        const map = {};
-        roomsResults.forEach((r) => (map[r.id] = r.rooms));
-        setRoomsByHostel(map);
-
-        const bRes = await getOwnerBookings();
-        setBookings(bRes?.data || []);
-      } catch (err) {
-        toast.error('Failed to load owner dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+    loadHostels();
+    loadBookings();
   }, []);
 
-  const totalRooms = useMemo(() => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0), [roomsByHostel]);
-  const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
-  const activeBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
-  const monthlyRevenue = useMemo(() => bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + (b.totalPrice || 0), 0), [bookings]);
-  const occupancyRate = totalRooms > 0 ? Math.round((confirmedBookings / totalRooms) * 100) : 0;
+  const getTotalRoomsCount = () => {
+    return Object.values(hostelRooms).reduce(
+      (sum, rooms) => sum + rooms.length,
+      0,
+    );
+  };
 
-  const recentBookingRows = bookings.slice(0, 6);
+  const getTotalBedsCount = () => {
+    return Object.values(hostelRooms).reduce(
+      (sum, rooms) =>
+        sum +
+        rooms.reduce((roomSum, room) => roomSum + (room.totalBeds || 0), 0),
+      0,
+    );
+  };
+
+  const getTotalAvailableBedsCount = () => {
+    return Object.values(hostelRooms).reduce(
+      (sum, rooms) =>
+        sum +
+        rooms.reduce((roomSum, room) => roomSum + (room.availableBeds || 0), 0),
+      0,
+    );
+  };
 
   return (
-    <div className="min-h-screen relative bg-[#faf8ff] text-[#131b2e] font-sans">
-      <OwnerSidebar onAdd={() => { /* open add flow, left as future work */ }} />
+    <main className="owner-dashboard">
+      <div className="container-fluid py-4">
+        {/* Header */}
+        <div className="row mb-4">
+          <div className="col-md-8">
+            <h1 className="fw-bold">Welcome, {user?.name}!</h1>
+            <p className="text-muted">
+              Manage your hostels, rooms and bookings
+            </p>
+          </div>
+          <div className="col-md-4 d-flex justify-content-end align-items-center">
+            {activeTab === "hostels" && (
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={() => {
+                  setSelectedHostelId(null);
+                  setShowAddHostelModal(true);
+                }}
+              >
+                <i className="bi bi-plus-circle me-2"></i> Add New Hostel
+              </button>
+            )}
+          </div>
+        </div>
 
-      <main className="ml-64 min-h-screen">
-        {/* <header className="fixed top-0 right-0 left-64 z-40 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200 shadow-sm">
-          <div className="flex justify-between items-center w-full px-8 h-full">
-            <div className="flex items-center flex-1 max-w-xl">
-              <div className="relative w-full">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                <input className="w-full bg-slate-100 border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20" placeholder="Search hostels, bookings, or guests..." type="text" />
-              </div>
-            </div>
-            <div className="flex items-center space-x-6">
-              <nav className="hidden lg:flex items-center space-x-8 mr-8">
-                <a className="text-blue-600 font-semibold" href="#">Overview</a>
-                <a className="text-slate-600 hover:text-blue-500 transition-all" href="#">Help Center</a>
-              </nav>
-              <div className="flex items-center space-x-4">
-                <button className="p-2 text-slate-600 hover:text-blue-600"><span className="material-symbols-outlined">notifications</span></button>
-                <div className="h-10 w-10 rounded-full bg-blue-100 overflow-hidden border border-slate-200"><img alt="User" className="h-full w-full object-cover" src={user?.avatar || 'https://via.placeholder.com/40'} /></div>
+        {/* Stats Cards */}
+        <div className="row mb-4">
+          <div className="col-md-3">
+            <div className="stat-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="stat-icon bg-primary">
+                  <i className="bi bi-building"></i>
+                </div>
+                <h6 className="card-title text-muted mt-3">Total Hostels</h6>
+                <h3 className="fw-bold text-dark">{hostels.length}</h3>
               </div>
             </div>
           </div>
-        </header> */}
 
-        <div className="pt-28 pb-12 px-8">
-          <div className="mb-10">
-            <h2 className="text-4xl font-extrabold tracking-tight mb-2">Portfolio Overview</h2>
-            <div className="flex items-center space-x-2">
-              <span className="bg-blue-100 px-3 py-1 rounded-full text-blue-700 text-xs font-semibold">Live Monitoring</span>
-              <span className="text-slate-500 text-sm">Last updated: 2 minutes ago</span>
+          <div className="col-md-3">
+            <div className="stat-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="stat-icon bg-success">
+                  <i className="bi bi-door-closed"></i>
+                </div>
+                <h6 className="card-title text-muted mt-3">Total Rooms</h6>
+                <h3 className="fw-bold text-dark">{getTotalRoomsCount()}</h3>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-10">
-            <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
-            <KpiCard title="Total Rooms" value={totalRooms} icon="king_bed" />
-            <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
-            <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
-            <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
-            <KpiCard title="Avg Night Price" value="$65.5" trend="up" trendValue="$4.0" colorClass="text-purple-600" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
-                <div className="flex justify-between items-start mb-8">
-                  <div>
-                    <h3 className="text-xl font-bold mb-1">Revenue Performance</h3>
-                    <p className="text-sm text-slate-500">Comparative analysis of gross earnings</p>
-                  </div>
-                  <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button className="px-4 py-1 text-xs font-bold bg-white rounded-md shadow-sm">Revenue</button>
-                    <button className="px-4 py-1 text-xs font-bold text-slate-500">Occupancy</button>
-                  </div>
+          <div className="col-md-3">
+            <div className="stat-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="stat-icon bg-info">
+                  <i className="bi bi-person-fill"></i>
                 </div>
-                <div className="h-64 flex items-end space-x-4">
-                  {[32, 48, 40, 56, 60, 64, 52].map((height, i) => (
-                    <div key={i} style={{ height: `${height}%` }} className={`flex-1 rounded-t-lg transition-all cursor-pointer ${i === 5 ? 'bg-gradient-to-t from-blue-600 to-purple-600' : 'bg-blue-100 hover:bg-blue-200'}`} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
-                <h3 className="text-xl font-bold mb-6">Recent Bookings</h3>
-                <table className="w-full text-left">
-                  <thead className="border-b border-slate-100">
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                      <th className="pb-4">Guest</th>
-                      <th className="pb-4">Hostel</th>
-                      <th className="pb-4">Status</th>
-                      <th className="pb-4 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {recentBookingRows.map((b, i) => (
-                      <tr key={b._id || i} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-4 text-sm font-semibold">{b.userId?.name || 'Guest'}</td>
-                        <td className="py-4 text-sm text-slate-500">{b.hostelId?.name || '—'}</td>
-                        <td className="py-4">
-                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' : b.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{b.status}</span>
-                        </td>
-                        <td className="py-4 text-sm font-bold text-right">Rs {b.totalPrice?.toLocaleString() || '0'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <h6 className="card-title text-muted mt-3">Total Beds</h6>
+                <h3 className="fw-bold text-dark">{getTotalBedsCount()}</h3>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-8">
-              <div className="bg-[#f0ebff] p-8 rounded-xl shadow-sm border border-purple-100 flex flex-col h-full">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="p-2 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg text-white">
-                    <span className="material-symbols-outlined">bolt</span>
-                  </div>
-                  <h3 className="text-xl font-bold">Intelli Insights</h3>
+          <div className="col-md-3">
+            <div className="stat-card card border-0 shadow-sm">
+              <div className="card-body">
+                <div className="stat-icon bg-warning">
+                  <i className="bi bi-check-circle"></i>
                 </div>
-                <div className="space-y-6">
-                  <InsightCard title="Demand Surge Detected" description="Demand is increasing in Lahore. Adjust inventory for the festival week." type="Growth Opportunity" borderClass="border-blue-600" actionText="Dismiss" />
-                  <InsightCard title="Dynamic Pricing Alert" description="Weekend pricing can be optimized by +12% based on local occupancy." type="Revenue Boost" borderClass="border-purple-600" />
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold py-3 rounded-lg shadow-md">Apply All Recommendations</button>
-                </div>
+                <h6 className="card-title text-muted mt-3">Bookings</h6>
+                <h3 className="fw-bold text-dark">{bookings.length}</h3>
               </div>
             </div>
           </div>
         </div>
-      </main>
+
+        {/* Booking Analytics – only visible in bookings tab */}
+        {activeTab === "bookings" && (
+          <div className="row mb-4">
+            {[
+              {
+                label: "Total Bookings",
+                value: bookings.length,
+                color: "#3b82f6",
+                bg: "#eff6ff",
+              },
+              {
+                label: "Confirmed",
+                value: bookings.filter((b) => b.status === "confirmed").length,
+                color: "#10b981",
+                bg: "#ecfdf5",
+              },
+              {
+                label: "Pending",
+                value: bookings.filter((b) => b.status === "pending").length,
+                color: "#f59e0b",
+                bg: "#fffbeb",
+              },
+              {
+                label: "Total Earnings",
+                value: `Rs ${bookings
+                  .filter(
+                    (b) => b.status === "confirmed" || b.status === "completed",
+                  )
+                  .reduce((s, b) => s + (b.totalPrice || 0), 0)
+                  .toLocaleString()}`,
+                color: "#8b5cf6",
+                bg: "#f5f3ff",
+              },
+            ].map((stat) => (
+              <div className="col-md-3" key={stat.label}>
+                <div
+                  className="card border-0 shadow-sm mb-3"
+                  style={{ borderLeft: `4px solid ${stat.color}` }}
+                >
+                  <div className="card-body py-3">
+                    <p className="text-muted mb-1 small fw-semibold">
+                      {stat.label}
+                    </p>
+                    <h4 className="fw-bold mb-0" style={{ color: stat.color }}>
+                      {stat.value}
+                    </h4>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <ul className="nav nav-tabs mb-4" role="tablist">
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "hostels" ? "active" : ""}`}
+              onClick={() => setActiveTab("hostels")}
+            >
+              <i className="bi bi-building me-2"></i> Hostels & Rooms
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "bookings" ? "active" : ""}`}
+              onClick={() => setActiveTab("bookings")}
+            >
+              <i className="bi bi-calendar-check me-2"></i> Bookings
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "settings" ? "active" : ""}`}
+              onClick={() => setActiveTab("settings")}
+            >
+              <i className="bi bi-gear me-2"></i> Settings
+            </button>
+          </li>
+        </ul>
+
+        {/* Hostels List */}
+        {activeTab === "hostels" && (
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-bottom">
+              <h5 className="card-title mb-0 fw-bold">Your Hostels</h5>
+            </div>
+            <div className="card-body">
+              {loading ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : hostels.length === 0 ? (
+                <div className="text-center py-5">
+                  <i
+                    className="bi bi-inbox"
+                    style={{ fontSize: "3rem", color: "#ccc" }}
+                  ></i>
+                  <p className="text-muted mt-3">
+                    No hostels yet. Add your first hostel to get started!
+                  </p>
+                </div>
+              ) : (
+                <div className="accordion" id="hostelAccordion">
+                  {hostels.map((hostel, idx) => {
+                    const rooms = hostelRooms[hostel._id] || [];
+                    const totalBeds = rooms.reduce(
+                      (sum, r) => sum + (r.totalBeds || 0),
+                      0,
+                    );
+                    const availableBeds = rooms.reduce(
+                      (sum, r) => sum + (r.availableBeds || 0),
+                      0,
+                    );
+
+                    return (
+                      <div className="accordion-item" key={hostel._id}>
+                        <h2 className="accordion-header">
+                          <button
+                            className="accordion-button"
+                            type="button"
+                            onClick={() => handleExpandHostel(hostel._id)}
+                            aria-expanded={expandedHostelId === hostel._id}
+                          >
+                            <div className="w-100">
+                              <div className="row align-items-center w-100">
+                                <div className="col-md-3">
+                                  <strong>{hostel.name}</strong>
+                                  <div className="small text-muted">
+                                    {hostel.city && hostel.addressLine1
+                                      ? `${hostel.addressLine1}, ${hostel.city}`
+                                      : "Address not set"}
+                                  </div>
+                                </div>
+                                <div className="col-md-2">
+                                  <span className="badge bg-info">
+                                    {rooms.length} rooms
+                                  </span>
+                                </div>
+                                <div className="col-md-2">
+                                  <span className="badge bg-success">
+                                    {totalBeds} beds
+                                  </span>
+                                </div>
+                                <div className="col-md-2">
+                                  <span className="badge bg-warning">
+                                    {availableBeds} available
+                                  </span>
+                                </div>
+                                <div className="col-md-3 text-end">
+                                  <span
+                                    className={`accordion-toggle-icon me-2 ${
+                                      expandedHostelId === hostel._id
+                                        ? "open"
+                                        : ""
+                                    }`}
+                                  >
+                                    <i
+                                      className={`bi ${
+                                        expandedHostelId === hostel._id
+                                          ? "bi-chevron-up"
+                                          : "bi-chevron-down"
+                                      }`}
+                                    ></i>
+                                  </span>
+                                  <button
+                                    className="btn btn-sm btn-outline-success me-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedHostelId(hostel._id);
+                                      setShowAddRoomModal(true);
+                                    }}
+                                  >
+                                    <i className="bi bi-plus"></i> Add Room
+                                  </button>
+                                  <button
+                                    className="btn-delete"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteHostel(hostel._id);
+                                    }}
+                                    title="Delete hostel"
+                                  >
+                                    <i
+                                      className="bi bi-trash"
+                                      aria-hidden="true"
+                                    ></i>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        </h2>
+                        <div
+                          id={`collapse-${hostel._id}`}
+                          className="accordion-collapse collapse"
+                          data-bs-parent="#hostelAccordion"
+                          style={{
+                            display:
+                              expandedHostelId === hostel._id
+                                ? "block"
+                                : "none",
+                          }}
+                        >
+                          <div className="accordion-body">
+                            {/* Hostel Info */}
+                            <div className="mb-4">
+                              <h6 className="fw-bold mb-2">Hostel Details</h6>
+                              {hostel.description && (
+                                <p className="text-muted mb-2">
+                                  <strong>Description:</strong>{" "}
+                                  {hostel.description}
+                                </p>
+                              )}
+                              {hostel.amenities &&
+                                hostel.amenities.length > 0 && (
+                                  <p className="mb-2">
+                                    <strong>Amenities:</strong>
+                                    <div>
+                                      {hostel.amenities.map((amenity, i) => (
+                                        <span
+                                          key={i}
+                                          className="badge bg-light text-dark me-1 mb-1"
+                                        >
+                                          {amenity}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </p>
+                                )}
+                              {hostel.rules && (
+                                <p className="text-muted">
+                                  <strong>Rules:</strong> {hostel.rules}
+                                </p>
+                              )}
+                            </div>
+
+                            <hr />
+
+                            {/* Rooms Section */}
+                            <h6 className="fw-bold mb-3">Rooms</h6>
+                            {rooms.length === 0 ? (
+                              <p className="text-muted text-center py-3">
+                                No rooms yet. Click "Add Room" to create one.
+                              </p>
+                            ) : (
+                              <div className="table-responsive">
+                                <table className="table table-sm table-hover">
+                                  <thead className="table-light">
+                                    <tr>
+                                      <th>Type</th>
+                                      <th>Total Beds</th>
+                                      <th>Available Beds</th>
+                                      <th>Price/Bed (Rs)</th>
+                                      <th>Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rooms.map((room) => (
+                                      <tr key={room._id}>
+                                        <td>
+                                          <strong>{room.roomType}</strong>
+                                        </td>
+                                        <td>{room.totalBeds}</td>
+                                        <td>
+                                          <span
+                                            className={`badge ${
+                                              room.availableBeds > 0
+                                                ? "bg-success"
+                                                : "bg-danger"
+                                            }`}
+                                          >
+                                            {room.availableBeds}
+                                          </span>
+                                        </td>
+                                        <td>
+                                          <div className="d-flex align-items-center">
+                                            <span>Rs {room.pricePerBed}</span>
+                                            <button
+                                              className="btn btn-sm ms-2 text-white shadow-sm fw-bold px-3 py-1"
+                                              style={{
+                                                background:
+                                                  "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
+                                                border: "none",
+                                                borderRadius: "20px",
+                                                transition:
+                                                  "all 0.2s ease-in-out",
+                                              }}
+                                              onMouseOver={(e) => {
+                                                e.currentTarget.style.transform =
+                                                  "scale(1.05)";
+                                                e.currentTarget.style.boxShadow =
+                                                  "0 4px 12px rgba(168, 85, 247, 0.4)";
+                                              }}
+                                              onMouseOut={(e) => {
+                                                e.currentTarget.style.transform =
+                                                  "scale(1)";
+                                                e.currentTarget.style.boxShadow =
+                                                  "none";
+                                              }}
+                                              onClick={() =>
+                                                handleGetAIPricing(
+                                                  room._id,
+                                                  hostel._id,
+                                                  room.pricePerBed,
+                                                )
+                                              }
+                                              title="Optimize with AI"
+                                            >
+                                              <i className="bi bi-magic me-1"></i>{" "}
+                                              AI Price
+                                            </button>
+                                          </div>
+                                        </td>
+                                        <td>
+                                          <button
+                                            className="btn-delete"
+                                            onClick={() =>
+                                              handleDeleteRoom(
+                                                room._id,
+                                                hostel._id,
+                                              )
+                                            }
+                                            title="Delete room"
+                                          >
+                                            <i
+                                              className="bi bi-trash"
+                                              aria-hidden="true"
+                                            ></i>
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div>
+            <StripeSettings />
+          </div>
+        )}
+
+        {/* Bookings List */}
+        {activeTab === "bookings" && (
+          <div>
+            {/* Filter Tabs */}
+            <div className="d-flex gap-2 mb-4 flex-wrap">
+              {[
+                { key: "all", label: "All", count: bookings.length },
+                {
+                  key: "pending",
+                  label: "Pending",
+                  count: bookings.filter((b) => b.status === "pending").length,
+                },
+                {
+                  key: "confirmed",
+                  label: "Confirmed",
+                  count: bookings.filter((b) => b.status === "confirmed")
+                    .length,
+                },
+                {
+                  key: "cancelled",
+                  label: "Cancelled",
+                  count: bookings.filter((b) => b.status === "cancelled")
+                    .length,
+                },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setBookingFilter(f.key)}
+                  className={`btn btn-sm rounded-pill px-3 py-2 fw-semibold ${
+                    bookingFilter === f.key
+                      ? "btn-primary"
+                      : "btn-outline-secondary"
+                  }`}
+                >
+                  {f.label}{" "}
+                  <span className="badge bg-light text-dark ms-1">
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {bookingsLoading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : bookings.length === 0 ? (
+              <div className="text-center py-5 bg-white rounded-4 shadow-sm">
+                <i
+                  className="bi bi-inbox"
+                  style={{ fontSize: "3rem", color: "#ccc" }}
+                ></i>
+                <p className="text-muted mt-3">No bookings yet</p>
+              </div>
+            ) : (
+              <div className="row g-3">
+                {bookings
+                  .filter(
+                    (b) =>
+                      bookingFilter === "all" || b.status === bookingFilter,
+                  )
+                  .map((booking) => (
+                    <div className="col-md-6 col-lg-4" key={booking._id}>
+                      <div
+                        className="card border-0 shadow-sm h-100"
+                        style={{ borderRadius: "16px", overflow: "hidden" }}
+                      >
+                        {/* Card header with status */}
+                        <div className="card-body p-4">
+                          <div className="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                              <h6 className="fw-bold mb-1 text-dark">
+                                {booking.userId?.name || "Guest"}
+                              </h6>
+                              <small className="text-muted">
+                                {booking.userId?.email || ""}
+                              </small>
+                            </div>
+                            <span
+                              className={`badge rounded-pill px-3 py-2 ${
+                                booking.status === "confirmed"
+                                  ? "bg-success"
+                                  : booking.status === "pending"
+                                    ? "bg-warning text-dark"
+                                    : "bg-danger"
+                              }`}
+                            >
+                              {booking.status?.charAt(0).toUpperCase() +
+                                booking.status?.slice(1)}
+                            </span>
+                          </div>
+
+                          <div
+                            className="p-3 rounded-3 mb-3"
+                            style={{ backgroundColor: "#f8fafc" }}
+                          >
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              <i className="bi bi-building text-primary"></i>
+                              <strong className="text-dark small">
+                                {booking.hostelId?.name || "—"}
+                              </strong>
+                            </div>
+                            <div className="row g-2">
+                              <div className="col-6">
+                                <small className="text-muted d-block">
+                                  Room
+                                </small>
+                                <small className="fw-semibold">
+                                  {booking.roomId?.roomType || "—"}
+                                </small>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block">
+                                  Beds
+                                </small>
+                                <small className="fw-semibold">
+                                  {booking.bedsBooked}
+                                </small>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block">
+                                  Check-in
+                                </small>
+                                <small className="fw-semibold">
+                                  {new Date(
+                                    booking.startDate,
+                                  ).toLocaleDateString("en-IN", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </small>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block">
+                                  Check-out
+                                </small>
+                                <small className="fw-semibold">
+                                  {new Date(booking.endDate).toLocaleDateString(
+                                    "en-IN",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    },
+                                  )}
+                                </small>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <span className="text-muted small">
+                              Total Price
+                            </span>
+                            <span className="fw-bold text-primary fs-5">
+                              Rs {booking.totalPrice?.toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Action buttons */}
+                          {booking.status !== "cancelled" && (
+                            <div className="d-flex gap-2">
+                              <button
+                                className="btn btn-sm flex-fill fw-semibold"
+                                style={{
+                                  backgroundColor: "#ecfdf5",
+                                  color: "#059669",
+                                  border: "1px solid #a7f3d0",
+                                  borderRadius: "10px",
+                                }}
+                                onClick={() => handleAcceptBooking(booking._id)}
+                                disabled={booking.status === "confirmed"}
+                              >
+                                <i className="bi bi-check-lg me-1"></i>
+                                {booking.status === "confirmed"
+                                  ? "Accepted"
+                                  : "Accept"}
+                              </button>
+                              <button
+                                className="btn btn-sm flex-fill fw-semibold"
+                                style={{
+                                  backgroundColor: "#fef2f2",
+                                  color: "#dc2626",
+                                  border: "1px solid #fecaca",
+                                  borderRadius: "10px",
+                                }}
+                                onClick={() => handleRejectBooking(booking._id)}
+                              >
+                                <i className="bi bi-x-lg me-1"></i> Reject
+                              </button>
+                            </div>
+                          )}
+                          {booking.status === "cancelled" && (
+                            <div className="text-center py-2">
+                              <small className="text-muted fst-italic">
+                                This booking was cancelled
+                              </small>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                {bookings.filter(
+                  (b) => bookingFilter === "all" || b.status === bookingFilter,
+                ).length === 0 && (
+                  <div className="col-12 text-center py-5">
+                    <p className="text-muted">
+                      No {bookingFilter} bookings found
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Add Hostel Modal */}
+      <div
+        className={`modal fade ${showAddHostelModal ? "show" : ""}`}
+        id="addHostelModal"
+        tabIndex="-1"
+        style={{ display: showAddHostelModal ? "block" : "none" }}
+      >
+        <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-content border-0">
+            <div className="modal-header border-bottom">
+              <h5 className="modal-title fw-bold">Add New Hostel</h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowAddHostelModal(false)}
+              ></button>
+            </div>
+            <div className="modal-body">
+              <AddHostel
+                onSuccess={(createdHostel) => {
+                  setShowAddHostelModal(false);
+                  const hostelId = createdHostel?._id || createdHostel?.id;
+                  if (hostelId) {
+                    setEnvHostelId(hostelId);
+                    setShowEnvModal(true);
+                  }
+                  loadHostels();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Room Modal */}
+      <div
+        className={`modal fade ${showAddRoomModal ? "show" : ""}`}
+        id="addRoomModal"
+        tabIndex="-1"
+        style={{ display: showAddRoomModal ? "block" : "none" }}
+      >
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content border-0">
+            <div className="modal-header border-bottom">
+              <h5 className="modal-title fw-bold">Add New Room</h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setShowAddRoomModal(false)}
+              ></button>
+            </div>
+            <div className="modal-body">
+              {selectedHostelId && (
+                <AddRoom
+                  hostelId={selectedHostelId}
+                  onSuccess={() => {
+                    setShowAddRoomModal(false);
+                    loadRoomsForHostel(selectedHostelId);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showAddHostelModal && <div className="modal-backdrop fade show"></div>}
+      {showAddRoomModal && <div className="modal-backdrop fade show"></div>}
+      {showEnvModal && envHostelId && (
+        <OwnerEnvironmentModal
+          hostelId={envHostelId}
+          onClose={(saved) => {
+            setShowEnvModal(false);
+            setEnvHostelId(null);
+            if (saved) loadHostels();
+          }}
+        />
+      )}
+
+      {/* AI Pricing Modal */}
+      <div
+        className={`modal fade ${showPricingModal ? "show" : ""}`}
+        style={{
+          display: showPricingModal ? "block" : "none",
+          backgroundColor: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(3px)",
+        }}
+        tabIndex="-1"
+      >
+        <div className="modal-dialog modal-dialog-centered">
+          <div
+            className="modal-content border-0 shadow-lg"
+            style={{ borderRadius: "16px", overflow: "hidden" }}
+          >
+            <div
+              className="modal-header text-white border-bottom-0 px-4 py-3"
+              style={{
+                background: "linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)",
+              }}
+            >
+              <h5 className="modal-title fw-bold d-flex align-items-center">
+                <i className="bi bi-stars me-2 fs-4 text-warning"></i>{" "}
+                IntelliStay AI Optimizer
+              </h5>
+              <button
+                type="button"
+                className="btn-close btn-close-white opacity-75"
+                onClick={() => setShowPricingModal(false)}
+              ></button>
+            </div>
+            <div className="modal-body p-4">
+              {pricingLoading ? (
+                <div className="text-center py-5">
+                  <div
+                    className="spinner-border text-purple"
+                    style={{ color: "#9333ea", width: "3rem", height: "3rem" }}
+                    role="status"
+                  >
+                    <span className="visually-hidden">Calculating...</span>
+                  </div>
+                  <h5 className="mt-4 fw-bold text-dark">
+                    Analyzing market data...
+                  </h5>
+                  <p className="text-muted mb-0 small">
+                    Evaluating amenities, city tier, and seasonal trends
+                  </p>
+                </div>
+              ) : pricingData ? (
+                <div>
+                  <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                    <span className="text-muted fw-semibold">
+                      Current Base Price
+                    </span>
+                    <strong className="text-dark fs-5">
+                      Rs {pricingData.base_price}/month
+                    </strong>
+                  </div>
+
+                  <div
+                    className="p-4 rounded-4 text-center mb-4 position-relative"
+                    style={{
+                      background: "linear-gradient(to right, #f8fafc, #f1f5f9)",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div
+                      className="text-purple fw-bold mb-2 text-uppercase tracking-wider small"
+                      style={{ color: "#7c3aed", letterSpacing: "1px" }}
+                    >
+                      Optimal Target Price
+                    </div>
+                    <div
+                      className="display-4 fw-bolder mb-3"
+                      style={{ color: "#0f172a" }}
+                    >
+                      Rs {pricingData.suggested_price}
+                    </div>
+
+                    <span
+                      className="badge rounded-pill px-3 py-2 fs-6 shadow-sm"
+                      style={{
+                        backgroundColor:
+                          pricingData.price_change_percent > 0
+                            ? "#dcfce7"
+                            : pricingData.price_change_percent < 0
+                              ? "#fee2e2"
+                              : "#f1f5f9",
+                        color:
+                          pricingData.price_change_percent > 0
+                            ? "#166534"
+                            : pricingData.price_change_percent < 0
+                              ? "#991b1b"
+                              : "#334155",
+                        border: `1px solid ${pricingData.price_change_percent > 0 ? "#bbf7d0" : pricingData.price_change_percent < 0 ? "#fecaca" : "#e2e8f0"}`,
+                      }}
+                    >
+                      <i
+                        className={`bi ${pricingData.price_change_percent > 0 ? "bi-graph-up-arrow" : pricingData.price_change_percent < 0 ? "bi-graph-down-arrow" : "bi-dash"} me-2`}
+                      ></i>
+                      {pricingData.price_change_percent > 0 ? "+" : ""}
+                      {pricingData.price_change_percent}% adjustment
+                    </span>
+                  </div>
+
+                  <div
+                    className="p-3 rounded-4 d-flex align-items-start"
+                    style={{
+                      backgroundColor: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <div
+                      className="rounded-circle p-2 bg-white shadow-sm me-3 d-flex align-items-center justify-content-center"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        minWidth: "40px",
+                      }}
+                    >
+                      <i className="bi bi-lightning-charge-fill text-success fs-5"></i>
+                    </div>
+                    <div>
+                      <strong className="text-success d-block mb-1">
+                        AI Reasoning
+                      </strong>
+                      <p className="mb-0 text-success text-opacity-75 small fw-medium">
+                        {pricingData.reasoning}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-danger py-4">
+                  <i className="bi bi-exclamation-triangle-fill display-4 text-danger opacity-50 mb-3"></i>
+                  <h5 className="fw-bold">Analysis Failed</h5>
+                  <p className="text-muted mb-0">
+                    Our AI couldn't calculate a price for this room right now.
+                  </p>
+                </div>
+              )}
+            </div>
+            {pricingData && !pricingLoading && (
+              <div className="modal-footer border-top-0 px-4 pb-4 pt-2">
+                <button
+                  type="button"
+                  className="btn btn-light fw-bold text-muted px-4"
+                  onClick={() => setShowPricingModal(false)}
+                  style={{ borderRadius: "8px" }}
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary px-4 fw-bold shadow-sm"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)",
+                    border: "none",
+                    borderRadius: "8px",
+                  }}
+                  onClick={handleApplyAIPricing}
+                >
+                  Apply Optimal Price
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <DeleteConfirmModal
+        visible={deleteModalVisible}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={performDelete}
+        itemName={deleteTarget?.name}
+        confirmLoading={deleteLoading}
+      />
+
       <ToastContainer position="top-right" />
-    </div>
+    </main>
   );
-}
+};
+
+export default OwnerDashboard;

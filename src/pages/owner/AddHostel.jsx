@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { addHostel } from "../../api/hostel.api";
 import { toast } from "react-toastify";
 
@@ -18,10 +19,24 @@ const AddHostel = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [previewImages, setPreviewImages] = useState([]);
-  
+
+  const { user } = useAuth();
 
   const submit = async (e) => {
     e.preventDefault();
+    // Ensure user is an owner before attempting protected API call
+    if (!user || user.role !== "owner") {
+      setError(
+        "You must be logged in as an owner to add a hostel. Log in with an owner account.",
+      );
+      return;
+    }
+    if (user.role === "owner" && user.isVerified === false) {
+      const proceed = confirm(
+        "Your owner account is not verified by an admin yet. Do you want to continue and submit the hostel?",
+       );
+      if (!proceed) return;
+    }
     if (!data.name || !data.addressLine1 || !data.city) {
       setError("Name, address line 1, and city are required");
       return;
@@ -139,7 +154,8 @@ const AddHostel = ({ onSuccess }) => {
           required
         />
         <small className="text-muted d-block mt-1">
-          Primary address: House/Building Number + Street Name + Street Suffix (St, Ave, Blvd, Rd, etc.)
+          Primary address: House/Building Number + Street Name + Street Suffix
+          (St, Ave, Blvd, Rd, etc.)
         </small>
       </div>
 
@@ -156,7 +172,8 @@ const AddHostel = ({ onSuccess }) => {
           onChange={(e) => setData({ ...data, addressLine2: e.target.value })}
         />
         <small className="text-muted d-block mt-1">
-          Use for: Apartment/Suite/Unit numbers, Floor numbers, or P.O. Box (leave blank if not applicable)
+          Use for: Apartment/Suite/Unit numbers, Floor numbers, or P.O. Box
+          (leave blank if not applicable)
         </small>
       </div>
 

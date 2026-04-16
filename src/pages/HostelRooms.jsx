@@ -369,7 +369,7 @@ const HostelRooms = () => {
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-2xl font-bold text-black mb-1">{room.roomType} {room.roomLabel ? <span className="text-sm text-gray-500 font-medium">· {room.roomLabel}</span> : null}</h3>
+                              <h3 className="text-2xl font-bold text-black mb-1">{room.roomType}</h3>
                               <div className="flex items-center gap-2 text-on-surface-variant">
                                 <Users className="w-5 h-5" />
                                 <span className="text-sm font-medium">{room.totalBeds} Beds Capacity</span>
