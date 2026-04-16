@@ -2,18 +2,18 @@ import React from 'react';
 
 const ScrollingBanner = () => {
   const benefits = [
-    "Gives agents a competitive edge with smarter search tools.",
-    "Helps investors analyze deals with comps and ROI data.",
-    "Reduces wasted showings that don't match buyer needs.",
-    "Makes home buying fun and lifestyle-focused.",
-    "Buyers search for *features*, not just filters."
+    "Find hostels that match your budget, location, and travel style.",
+    "Explore rooms, amenities, and verified details before booking.",
+    "Get personalized hostel recommendations with our personality quiz.",
+    "Book smarter with transparent pricing and easy comparisons.",
+    "Save your favorite hostels and plan your stay with confidence."
   ];
 
   // We double the array to ensure the loop is seamless
   const displayItems = [...benefits, ...benefits];
 
   return (
-    <div className="relative w-full overflow-hidden bg-[var(--color-primary)] py-2.5 text-white">
+    <div className="relative w-full overflow-hidden bg-[var(--color-primary)] py-1 text-white">
       {/* Injecting the keyframe animation directly into the component */}
       <style>
         {`

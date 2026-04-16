@@ -5,8 +5,8 @@ const MyHostels = () => {
   const [hostels, setHostels] = useState([]);
 
   useEffect(() => {
-      getMyHostels().then((res) => setHostels(res.data));
-    }, []);
+    getMyHostels().then((res) => setHostels(res.data));
+  }, []);
 
   return (
     <ul>

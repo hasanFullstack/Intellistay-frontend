@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
-import { getAllHostels } from "../../src/api/hostel.api";
+import { useFavorites } from "../../src/hooks/useFavorites";
+import { useHostels } from "../../src/context/HostelsContext";
 import { getRoomsByHostel } from "../../src/api/room.api";
 
-const SEATER_OPTIONS = ["Any Seater", "Single", "2 Seater", "4 Seater"];
+const SEATER_OPTIONS = ["Any Seater", "Single", "2 Seater", "3 Seater", "4 Seater"];
+const GENDER_OPTIONS = ["Any Gender", "Male", "Female"];
 
 const extractCity = (city = "") => {
   return String(city).trim();
@@ -13,6 +15,7 @@ const extractCity = (city = "") => {
 const selectedSeaterToBedCount = (selectedSeater) => {
   if (selectedSeater === "Single") return 1;
   if (selectedSeater === "2 Seater") return 2;
+  if (selectedSeater === "3 Seater") return 3;
   if (selectedSeater === "4 Seater") return 4;
   return null;
 };
@@ -23,18 +26,23 @@ const FeaturedHostels = () => {
   const [searchText, setSearchText] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("Any Location");
   const [selectedSeater, setSelectedSeater] = useState("Any Seater");
+  const [selectedGender, setSelectedGender] = useState("Any Gender");
   const [hostels, setHostels] = useState([]);
   const [visibleHostels, setVisibleHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
   const [searchActive, setSearchActive] = useState(false);
 
   const fallbackImage =
     "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=400";
 
   const fetchHostels = async () => {
-    const res = await getAllHostels();
-    return Array.isArray(res?.data) ? res.data : [];
+    // Use context hostels if available
+    if (!ctxLoading && Array.isArray(ctxHostels) && ctxHostels.length > 0) return ctxHostels;
+    // Otherwise refresh from provider
+    await refresh();
+    return Array.isArray(ctxHostels) ? ctxHostels : [];
   };
 
   const buildRoomMeta = async (hostelList) => {
@@ -68,7 +76,7 @@ const FeaturedHostels = () => {
   }, [hostels]);
 
   const applyLocalFilters = (hostelList, roomMeta, criteria) => {
-    const { text, location, seater } = criteria;
+    const { text, location, seater, gender } = criteria;
     const q = String(text || "")
       .trim()
       .toLowerCase();
@@ -91,7 +99,12 @@ const FeaturedHostels = () => {
       const matchesSeater =
         selectedBedCount == null || hostelSeaters.includes(selectedBedCount);
 
-      return matchesText && matchesLocation && matchesSeater;
+      const hostelGender = String(hostel?.gender || "Male");
+      const matchesGender =
+        gender === "Any Gender" ||
+        hostelGender.toLowerCase() === String(gender).toLowerCase();
+
+      return matchesText && matchesLocation && matchesSeater && matchesGender;
     });
   };
 
@@ -103,7 +116,8 @@ const FeaturedHostels = () => {
       const hasFilter =
         String(searchText || "").trim() !== "" ||
         selectedLocation !== "Any Location" ||
-        selectedSeater !== "Any Seater";
+        selectedSeater !== "Any Seater" ||
+        selectedGender !== "Any Gender";
 
       // If no filter or search is active, keep showing latest hostels and do not call backend
       if (!hasFilter) {
@@ -124,6 +138,7 @@ const FeaturedHostels = () => {
         text: searchText,
         location: selectedLocation,
         seater: selectedSeater,
+        gender: selectedGender,
       });
       setVisibleHostels(result);
       // Smooth scroll to results header when filters/search were used
@@ -180,6 +195,7 @@ const FeaturedHostels = () => {
     setSearchText("");
     setSelectedLocation("Any Location");
     setSelectedSeater("Any Seater");
+    setSelectedGender("Any Gender");
     setSearchActive(false);
     try {
       setLoading(true);
@@ -199,10 +215,13 @@ const FeaturedHostels = () => {
 
   const primaryColor = "#235784";
 
+  const { toggleFavorite, isFavorited } = useFavorites();
+
   const isAnyFilterSelected =
     String(searchText || "").trim() !== "" ||
     selectedLocation !== "Any Location" ||
-    selectedSeater !== "Any Seater";
+    selectedSeater !== "Any Seater" ||
+    selectedGender !== "Any Gender";
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
@@ -213,14 +232,14 @@ const FeaturedHostels = () => {
         {/* Top Search Bar */}
         <div className="bg-white rounded-2xl shadow-[0_12px_35px_rgba(15,23,42,0.12)] p-4 md:p-5 flex flex-wrap items-center gap-4">
           <div className="flex-[2] min-w-[300px] relative self-end">
-            <div className="flex items-center rounded-xl px-3 py-2.5 bg-gray-50">
+            <div className="flex items-center rounded-xl px-3 py-2.5 bg-gray-50 border border-[#235784]">
               <Search size={18} className="text-gray-400 mr-2" />
               <input
                 type="text"
                 placeholder="Find hostels by features, Location or address"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full outline-none text-sm text-gray-600 bg-transparent"
+                className="w-full outline-none text-sm text-gray-600 bg-transparent focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none"
               />
             </div>
           </div>
@@ -259,7 +278,7 @@ const FeaturedHostels = () => {
           </div>
 
           {activeFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {/* Filter Type removed per request */}
 
               <label className="flex flex-col gap-1">
@@ -270,7 +289,7 @@ const FeaturedHostels = () => {
                   <select
                     value={selectedSeater}
                     onChange={(e) => setSelectedSeater(e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none"
+                    className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none border border-[#235784] outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-[#235784] active:border-[#235784]"
                   >
                     {SEATER_OPTIONS.map((seaterLabel) => (
                       <option key={seaterLabel} value={seaterLabel}>
@@ -292,7 +311,7 @@ const FeaturedHostels = () => {
                   <select
                     value={selectedLocation}
                     onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none"
+                    className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none border border-[#235784] outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-[#235784] active:border-[#235784]"
                   >
                     {locationOptions.map((location) => (
                       <option key={location} value={location}>
@@ -306,6 +325,29 @@ const FeaturedHostels = () => {
                   />
                 </div>
               </div>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-gray-400 uppercase">
+                  Hostel Gender
+                </span>
+                <div className="relative">
+                  <select
+                    value={selectedGender}
+                    onChange={(e) => setSelectedGender(e.target.value)}
+                    className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none border border-[#235784] outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-[#235784] active:border-[#235784]"
+                  >
+                    {GENDER_OPTIONS.map((genderOption) => (
+                      <option key={genderOption} value={genderOption}>
+                        {genderOption}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={14}
+                    className="text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                </div>
+              </label>
             </div>
           )}
         </div>
@@ -359,9 +401,23 @@ const FeaturedHostels = () => {
                       </span>
                     </div>
 
-                    {/* Heart Icon */}
-                    <button className="absolute top-3 right-3 bg-white/20 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-white hover:text-red-500 transition-colors">
-                      <Heart size={18} />
+                    {/* Favorite Button */}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await toggleFavorite(hostel._id);
+                      }}
+                      className="absolute top-3 right-3 backdrop-blur-md p-1.5 text-white hover:!bg-gray-700 hover:text-red-500 transition-all duration-200"
+                      style={{
+                        borderRadius: "0.375rem",
+                        backgroundColor: "rgb(110 99 99 / 20%)"
+                      }}
+                    >
+                      <Heart
+                        size={18}
+                        fill={isFavorited(hostel._id) ? "#ef4444" : "none"}
+                        color={isFavorited(hostel._id) ? "#ef4444" : "white"}
+                      />
                     </button>
                   </div>
 

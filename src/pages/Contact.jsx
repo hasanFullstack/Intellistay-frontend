@@ -39,7 +39,7 @@ const Contact = () => {
     <>
       <div className="contact-page">
         <div className="container-fluid">
-          <div className="row align-items-center min-vh-100">
+          <div className="row align-items-center contact-row">
             {/* Left Section - Info */}
             <div className="col-lg-6 contact-info-section">
               <div className="contact-info">

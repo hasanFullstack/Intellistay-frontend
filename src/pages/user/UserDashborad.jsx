@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { getUserBookings, cancelBooking } from "../../api/booking.api";
+// favorites are handled by the `useFavorites` hook
 import { useAuth } from "../../auth/AuthContext";
 import { toast } from "react-toastify";
 import RecommendedHostels from "./RecommendedHostels";
+import { Link, useNavigate } from "react-router-dom";
+import { useFavorites } from "../../hooks/useFavorites";
+import { Heart } from "lucide-react";
 import {
   Calendar,
   MapPin,
@@ -15,6 +19,9 @@ import {
   Eye,
   X,
   Bell,
+  BookOpen,
+  Home,
+  Inbox,
 } from "lucide-react";
 
 const UserDashboard = () => {
@@ -25,6 +32,8 @@ const UserDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [cancelModalId, setCancelModalId] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toggleFavorite, isFavorited, favoriteHostels, loading: favHookLoading } = useFavorites();
 
   const loadBookings = async () => {
     try {
@@ -65,6 +74,13 @@ const UserDashboard = () => {
       month: "short",
       day: "numeric",
     });
+  };
+
+  const formatPrice = (p) => {
+    if (p === undefined || p === null) return "—";
+    const n = Number(p);
+    if (Number.isFinite(n)) return `₹${n.toLocaleString()}`;
+    return String(p);
   };
 
   const getActiveBookings = () =>
@@ -188,20 +204,19 @@ const UserDashboard = () => {
             {/* Tab Navigation */}
             <div className="flex gap-2 bg-white p-1 rounded-xl w-fit shadow-sm">
               {[
-                { key: "bookings", label: "My Bookings", emoji: "📚" },
-                { key: "recommendations", label: "Recommended", emoji: "🏠" },
+                { key: "bookings", label: "My Bookings", icon: <BookOpen size={16} /> },
+                { key: "recommendations", label: "Recommended", icon: <Home size={16} /> },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   style={{ borderRadius: "0.5rem" }}
-                  className={`px-4 py-2.5 text-sm font-semibold transition-all ${
-                    activeTab === tab.key
-                      ? "bg-[#2b5a84] text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`px-4 py-2.5 text-sm font-semibold transition-all ${activeTab === tab.key
+                    ? "bg-[#2b5a84] text-white"
+                    : "text-gray-600 hover:text-gray-900"
+                    }`}
                 >
-                  {tab.emoji} {tab.label}
+                  <span className="inline-flex items-center gap-2">{tab.icon} {tab.label}</span>
                 </button>
               ))}
             </div>
@@ -223,7 +238,7 @@ const UserDashboard = () => {
                   </div>
                 ) : bookings.length === 0 ? (
                   <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
-                    <div className="text-5xl mb-4">📭</div>
+                    <Inbox size={56} className="mx-auto mb-4 text-gray-400" />
                     <h3 className="text-xl font-bold text-gray-900 mb-2">
                       No Bookings Yet
                     </h3>
@@ -401,6 +416,82 @@ const UserDashboard = () => {
                 )}
               </div>
             )}
+
+            {/* Saved Hostels */}
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Favorite Hostels</h2>
+                    <Link to="/hostels?filter=favorites" className="!text-[#2b5a84] hover:!underline !no-underline transition-all duration-200">
+                      View All
+                    </Link>
+              </div>
+              {favHookLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#2b5a84] border-t-transparent"></div>
+                </div>
+              ) : (favoriteHostels.length === 0 ? (
+                <div className="text-sm text-gray-500">You haven't saved any hostels yet.</div>
+              ) : (
+                <div>
+                  <div className="flex flex-wrap justify-between gap-6">
+                    {favoriteHostels.slice(0, 2).map((host) => {
+                    const id = host?._id || host?.id;
+                    const imageUrl = host?.images?.[0] || "https://via.placeholder.com/600x400";
+                    const imageAlt = host?.name || "Hostel image";
+                    const price = host?.minRoomPrice ?? host?.pricePerBed ?? host?.minPrice ?? "—";
+                    const rating = host?.rating || host?.avgRating || "—";
+                    const reviewsCount = host?.reviews?.length || host?.reviewsCount || 0;
+                    const title = host?.name || "—";
+                    const location = host?.addressLine1 && host?.city ? `${host.addressLine1}, ${host.city}` : host?.city || "—";
+                    return (
+                      <div
+                        key={id || Math.random()}
+                        className="group relative w-[380px] rounded-3xl overflow-hidden shadow-md bg-white font-sans border border-gray-100 transition-transform cursor-pointer"
+                        onClick={() => navigate(`/hostels/${id}/rooms`)}
+                      >
+                        <div className="relative h-[280px] overflow-hidden">
+                          <img src={imageUrl} alt={imageAlt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          {/* Favorite Button */}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await toggleFavorite(id);
+                            }}
+                            className="absolute top-3 right-3 backdrop-blur-md p-1.5 hover:bg-gray-400 transition-all duration-200"
+                            style={{
+                              borderRadius: "0.375rem",
+                              backgroundColor: "rgb(110 99 99 / 20%)"
+                            }}
+                          >
+                            <Heart
+                              size={18}
+                              fill={isFavorited(id) ? "#ef4444" : "none"}
+                              color={isFavorited(id) ? "#ef4444" : "white"}
+                            />
+                          </button>
+
+                          <div className="absolute bottom-5 left-5 bg-white/80 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-md">
+                            <span className="text-xl font-semibold text-[#1B365D]">{formatPrice(price)}</span>
+                            <span className="text-base text-[#1B365D]/80 ml-1"> / Month</span>
+                          </div>
+                        </div>
+
+                        <div className="p-7">
+                          <h3 className="text-3xl font-extrabold text-[#111827] leading-tight mb-2">{title}</h3>
+
+                          <p className="text-lg text-[#4B5563]">{location}</p>
+                        </div>
+                      </div>
+                    );
+                    })}
+                  </div>
+                  {/* If more than 2 favorites, show a small hint */}
+                  {favoriteHostels.length > 2 && (
+                    <div className="mt-4 text-sm text-gray-500">Showing 2 of {favoriteHostels.length} saved hostels. Click "View All" to see all.</div>
+                  )}
+                </div>
+              ))}
+            </div>
 
           </div>
 
