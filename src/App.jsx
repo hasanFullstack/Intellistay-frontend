@@ -17,7 +17,6 @@ import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PersonalityQuizPage from "./pages/PersonalityQuizPage";
 import AuthModal from "./pages/AuthModal";
 import NotFound from "./pages/NotFound";
-import BookingSuccess from "./pages/BookingSuccess";
 
 import { useState } from "react";
 
@@ -41,13 +40,14 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
   const navigate = useNavigate();
 
   // Standalone pages (no Navbar/Footer)
-  const standaloneRoutes = ["/booking-success"];
+  const standaloneRoutes = ["/booking-success", "/payment-cancel"];
   const isStandalone = standaloneRoutes.includes(location.pathname);
 
   if (isStandalone) {
     return (
       <Routes>
         <Route path="/booking-success" element={<BookingSuccess />} />
+        <Route path="/payment-cancel" element={<PaymentCancel />} />
       </Routes>
     );
   }
