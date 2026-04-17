@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useMemo } from "react";
+import { getBookingBySession, finalizeBooking } from "../api/booking.api";
 
 // Floating particle component
 const Particle = ({ delay, size, x, y, duration }) => (
@@ -43,10 +44,82 @@ const BookingSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
-  const booking = location.state?.booking;
+  const [status, setStatus] = useState("loading"); // "loading" | "success" | "error"
+  const [booking, setBooking] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // These params are embedded in the success URL by RoomDetail before redirecting to Stripe
+  const searchParams = new URLSearchParams(location.search);
+  const sessionId = searchParams.get("session_id");
+  const roomId = searchParams.get("roomId");
+  const startDate = searchParams.get("startDate");
+  const bedsBooked = searchParams.get("bedsBooked");
 
   useEffect(() => {
     setMounted(true);
+
+    const run = async () => {
+      if (!sessionId) {
+        setStatus("error");
+        setErrorMsg("Missing payment session. Please contact support.");
+        return;
+      }
+
+      // --- Step 1: Poll for booking created by webhook (up to 5 attempts × 1.5s) ---
+      let found = null;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const res = await getBookingBySession(sessionId);
+          if (res.data?.found) {
+            found = res.data.booking;
+            break;
+          }
+        } catch {
+          // 404 means not found yet — keep polling
+        }
+        // Wait 1.5s before next attempt
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      if (found) {
+        setBooking(found);
+        setStatus("success");
+        console.log("Booking found (created by webhook):", found._id);
+        return;
+      }
+
+      // --- Step 2: Webhook didn't fire in time — use fallback finalize API ---
+      console.log("Webhook didn't fire in time — using fallback finalize...");
+      if (!roomId || !startDate || !bedsBooked) {
+        setStatus("error");
+        setErrorMsg("Booking details missing. Please contact support.");
+        return;
+      }
+
+      try {
+        const res = await finalizeBooking({
+          sessionId,
+          roomId,
+          startDate: decodeURIComponent(startDate),
+          bedsBooked: parseInt(bedsBooked, 10),
+        });
+        if (res.data?.success) {
+          setBooking(res.data.booking);
+          setStatus("success");
+          console.log("Booking finalized via fallback:", res.data.booking._id, "| source:", res.data.source);
+        } else {
+          setStatus("error");
+          setErrorMsg(res.data?.message || "Failed to confirm booking.");
+        }
+      } catch (err) {
+        setStatus("error");
+        setErrorMsg(err.response?.data?.message || err.message || "Failed to confirm booking.");
+        console.error("Fallback finalize error:", err);
+      }
+    };
+
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Generate particles with stable positions
@@ -101,10 +174,7 @@ const BookingSuccess = () => {
     },
   };
 
-  const dashboardPath =
-    location.state?.userRole === "owner"
-      ? "/dashboard/owner"
-      : "/dashboard/user";
+  const dashboardPath = "/dashboard/user";
 
   return (
     <div
@@ -171,25 +241,22 @@ const BookingSuccess = () => {
               <motion.div
                 className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
                 style={{
-                  background: "linear-gradient(135deg, #003868, #194f87)",
-                  boxShadow: "0 12px 40px rgba(0, 56, 104, 0.25)",
+                  background: status === "error"
+                    ? "linear-gradient(135deg, #dc3545, #c82333)"
+                    : "linear-gradient(135deg, #003868, #194f87)",
+                  boxShadow: status === "error"
+                    ? "0 12px 40px rgba(220, 53, 69, 0.25)"
+                    : "0 12px 40px rgba(0, 56, 104, 0.25)",
                 }}
                 variants={iconVariants}
               >
                 <motion.span
                   className="material-symbols-outlined text-white"
-                  style={{
-                    fontSize: "40px",
-                    fontVariationSettings: "'FILL' 1",
-                  }}
+                  style={{ fontSize: "40px", fontVariationSettings: "'FILL' 1" }}
                   animate={{ scale: [1, 1.15, 1] }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  check_circle
+                  {status === "error" ? "error" : status === "loading" ? "hourglass_top" : "check_circle"}
                 </motion.span>
               </motion.div>
 
@@ -197,20 +264,27 @@ const BookingSuccess = () => {
                 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4"
                 style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  color: "#003868",
+                  color: status === "error" ? "#dc3545" : "#003868",
                 }}
                 variants={itemVariants}
               >
-                Booking Confirmed!
+                {status === "loading"
+                  ? "Confirming your booking..."
+                  : status === "error"
+                  ? "Something went wrong"
+                  : "Booking Confirmed!"}
               </motion.h1>
 
               <motion.p
                 className="text-lg max-w-xl mx-auto leading-relaxed"
-                style={{ color: "#424750" }}
+                style={{ color: status === "error" ? "#dc3545" : "#424750" }}
                 variants={itemVariants}
               >
-                Your reservation has been received successfully. You'll find all
-                the details in your dashboard.
+                {status === "loading"
+                  ? "Please wait while we confirm your payment..."
+                  : status === "error"
+                  ? `${errorMsg} Please contact support.`
+                  : "Your reservation has been received successfully. You'll find all the details in your dashboard."}
               </motion.p>
             </motion.div>
 
@@ -249,9 +323,9 @@ const BookingSuccess = () => {
                           color: "#003868",
                         }}
                       >
-                        {booking.hostelName || "Your Hostel"}
+                        Your Hostel
                       </h2>
-                      {booking.hostelLocation && (
+                      {booking.hostelId && (
                         <p
                           className="text-sm mt-1 flex items-center gap-1"
                           style={{ color: "#424750" }}
@@ -262,7 +336,7 @@ const BookingSuccess = () => {
                           >
                             location_on
                           </span>
-                          {booking.hostelLocation}
+                          Booking ID: {booking._id?.slice(-8).toUpperCase()}
                         </p>
                       )}
                     </div>
@@ -306,7 +380,7 @@ const BookingSuccess = () => {
                           color: "#191c1e",
                         }}
                       >
-                        {formatDate(booking.startDate)}
+                        {formatDate(booking.startDate) || formatDate(decodeURIComponent(startDate))}
                       </p>
                     </div>
                     <div>
@@ -321,17 +395,17 @@ const BookingSuccess = () => {
                           calendar_month
                         </span>
                         <span className="text-xs font-bold uppercase tracking-widest">
-                          Check-out
+                          Status
                         </span>
                       </div>
                       <p
                         className="font-semibold"
                         style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
-                          color: "#191c1e",
+                          color: "#003868",
                         }}
                       >
-                        {formatDate(booking.endDate)}
+                        {booking.status?.toUpperCase() || "CONFIRMED"}
                       </p>
                     </div>
                   </div>
@@ -374,9 +448,9 @@ const BookingSuccess = () => {
                         color: "#35485f",
                       }}
                     >
-                      {booking.roomType || "Room"} ×{" "}
-                      {booking.bedsBooked || 1} bed
-                      {(booking.bedsBooked || 1) > 1 ? "s" : ""}
+                      Room ×{" "}
+                      {booking.bedsBooked || bedsBooked || 1} bed
+                      {(booking.bedsBooked || parseInt(bedsBooked) || 1) > 1 ? "s" : ""}
                     </p>
                   </motion.div>
 

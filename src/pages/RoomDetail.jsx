@@ -230,13 +230,16 @@ const RoomDetail = () => {
       const appOrigin = window.location.origin;
 
       // Send booking details to payments API
+      const bookingStartDate = startDate || new Date().toISOString().split("T")[0];
+      const successUrl = `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}&roomId=${roomId}&startDate=${encodeURIComponent(bookingStartDate)}&bedsBooked=${bedsBooked}`;
+
       const sessionRes = await createCheckoutSession({
         roomId,
         quantity: bedsBooked,
         currency: "PKR",
-        startDate: startDate || new Date().toISOString().split("T")[0],
+        startDate: bookingStartDate,
         bedsBooked,
-        successUrl: `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+        successUrl,
         cancelUrl: `${appOrigin}/payment-cancel`,
       });
 
