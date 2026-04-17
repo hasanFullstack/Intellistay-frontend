@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
 import { useFavorites } from "../../src/hooks/useFavorites";
 import { getAllHostels } from "../../src/api/hostel.api";
+import { useHostels } from "../../src/context/HostelsContext";
 
 const GENDER_OPTIONS = ["Any Gender", "Male", "Female"];
 const HOSTEL_TYPE_OPTIONS = [
@@ -12,6 +13,8 @@ const HOSTEL_TYPE_OPTIONS = [
   { label: "Most Popular", value: "popular" },
   { label: "Budget Friendly", value: "budget" },
 ];
+
+const featureFilterCache = new Map();
 
 const extractCity = (city = "") => {
   return String(city).trim();
@@ -29,6 +32,7 @@ const FeaturedHostels = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchActive, setSearchActive] = useState(false);
+  const { hostels: ctxHostels, refresh } = useHostels();
 
   const latestEight = useMemo(() => {
     return hostels.slice(0, 8);
@@ -62,12 +66,27 @@ const FeaturedHostels = () => {
   };
 
   const fetchByType = async (typeValue) => {
-    const response =
-      typeValue === "All Hostels"
-        ? await getAllHostels()
-        : await getAllHostels(typeValue);
+    if (typeValue === "All Hostels") {
+      if (Array.isArray(ctxHostels) && ctxHostels.length > 0) {
+        return ctxHostels;
+      }
 
-    return Array.isArray(response?.data) ? response.data : [];
+      const refreshed = await refresh();
+      return Array.isArray(refreshed) ? refreshed : [];
+    }
+
+    const cached = featureFilterCache.get(typeValue);
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached;
+    }
+
+    const response =
+      await getAllHostels(typeValue);
+
+    const data = Array.isArray(response?.data) ? response.data : [];
+    featureFilterCache.set(typeValue, data);
+
+    return data;
   };
 
   const loadHostelsByType = async (typeValue) => {
@@ -88,7 +107,7 @@ const FeaturedHostels = () => {
 
   useEffect(() => {
     loadHostelsByType(selectedType);
-  }, [selectedType]);
+  }, [selectedType, ctxHostels]);
 
   useEffect(() => {
     const hasLocalFilters =
