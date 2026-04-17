@@ -2,82 +2,40 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
 import { useFavorites } from "../../src/hooks/useFavorites";
-import { useHostels } from "../../src/context/HostelsContext";
-import { getRoomsByHostel } from "../../src/api/room.api";
+import { getAllHostels } from "../../src/api/hostel.api";
 
-const SEATER_OPTIONS = ["Any Seater", "Single", "2 Seater", "3 Seater", "4 Seater"];
 const GENDER_OPTIONS = ["Any Gender", "Male", "Female"];
+const HOSTEL_TYPE_OPTIONS = [
+  { label: "All Hostels", value: "All Hostels" },
+  { label: "Available Now", value: "available" },
+  { label: "Recommended", value: "recommended" },
+  { label: "Most Popular", value: "popular" },
+  { label: "Budget Friendly", value: "budget" },
+];
 
 const extractCity = (city = "") => {
   return String(city).trim();
-};
-
-const selectedSeaterToBedCount = (selectedSeater) => {
-  if (selectedSeater === "Single") return 1;
-  if (selectedSeater === "2 Seater") return 2;
-  if (selectedSeater === "3 Seater") return 3;
-  if (selectedSeater === "4 Seater") return 4;
-  return null;
 };
 
 const FeaturedHostels = () => {
   const navigate = useNavigate();
   const [activeFilters, setActiveFilters] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [selectedType, setSelectedType] = useState("All Hostels");
   const [selectedLocation, setSelectedLocation] = useState("Any Location");
-  const [selectedSeater, setSelectedSeater] = useState("Any Seater");
   const [selectedGender, setSelectedGender] = useState("Any Gender");
   const [hostels, setHostels] = useState([]);
   const [visibleHostels, setVisibleHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
   const [searchActive, setSearchActive] = useState(false);
-
-  const fallbackImage =
-    "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=400";
-
-  const fetchHostels = async () => {
-    // Use context hostels if available
-    if (!ctxLoading && Array.isArray(ctxHostels) && ctxHostels.length > 0) return ctxHostels;
-    // Otherwise refresh from provider
-    await refresh();
-    return Array.isArray(ctxHostels) ? ctxHostels : [];
-  };
-
-  const buildRoomMeta = async (hostelList) => {
-    if (!hostelList.length) return {};
-
-    const entries = await Promise.all(
-      hostelList.map(async (hostel) => {
-        try {
-          const res = await getRoomsByHostel(hostel._id);
-          const rooms = Array.isArray(res?.data) ? res.data : [];
-          const uniqueSeaters = [
-            ...new Set(
-              rooms
-                .map((room) => Number(room?.totalBeds || 0))
-                .filter((beds) => Number.isFinite(beds) && beds > 0),
-            ),
-          ].sort((a, b) => a - b);
-
-          return [String(hostel._id), uniqueSeaters];
-        } catch {
-          return [String(hostel._id), []];
-        }
-      }),
-    );
-
-    return Object.fromEntries(entries);
-  };
 
   const latestEight = useMemo(() => {
     return hostels.slice(0, 8);
   }, [hostels]);
 
-  const applyLocalFilters = (hostelList, roomMeta, criteria) => {
-    const { text, location, seater, gender } = criteria;
-    const q = String(text || "")
+  const applyLocalFilters = (hostelList) => {
+    const q = String(searchText || "")
       .trim()
       .toLowerCase();
 
@@ -91,61 +49,34 @@ const FeaturedHostels = () => {
 
       const hostelCity = extractCity(hostel?.city || "");
       const matchesLocation =
-        location === "Any Location" ||
-        hostelCity.toLowerCase() === String(location).toLowerCase();
-
-      const hostelSeaters = roomMeta[String(hostel?._id)] || [];
-      const selectedBedCount = selectedSeaterToBedCount(seater);
-      const matchesSeater =
-        selectedBedCount == null || hostelSeaters.includes(selectedBedCount);
+        selectedLocation === "Any Location" ||
+        hostelCity.toLowerCase() === String(selectedLocation).toLowerCase();
 
       const hostelGender = String(hostel?.gender || "Male");
       const matchesGender =
-        gender === "Any Gender" ||
-        hostelGender.toLowerCase() === String(gender).toLowerCase();
+        selectedGender === "Any Gender" ||
+        hostelGender.toLowerCase() === String(selectedGender).toLowerCase();
 
-      return matchesText && matchesLocation && matchesSeater && matchesGender;
+      return matchesText && matchesLocation && matchesGender;
     });
   };
 
-  const runSearch = async () => {
+  const fetchByType = async (typeValue) => {
+    const response =
+      typeValue === "All Hostels"
+        ? await getAllHostels()
+        : await getAllHostels(typeValue);
+
+    return Array.isArray(response?.data) ? response.data : [];
+  };
+
+  const loadHostelsByType = async (typeValue) => {
     try {
       setLoading(true);
       setError("");
-      // Determine if any filter/search is active
-      const hasFilter =
-        String(searchText || "").trim() !== "" ||
-        selectedLocation !== "Any Location" ||
-        selectedSeater !== "Any Seater" ||
-        selectedGender !== "Any Gender";
 
-      // If no filter or search is active, keep showing latest hostels and do not call backend
-      if (!hasFilter) {
-        setSearchActive(false);
-        setVisibleHostels(latestEight);
-        return;
-      }
-
-      setSearchActive(true);
-
-      const all = await fetchHostels();
-      const topEight = all.slice(0, 8);
-      const roomMeta = await buildRoomMeta(topEight);
-
-      setHostels(all);
-
-      const result = applyLocalFilters(topEight, roomMeta, {
-        text: searchText,
-        location: selectedLocation,
-        seater: selectedSeater,
-        gender: selectedGender,
-      });
-      setVisibleHostels(result);
-      // Smooth scroll to results header when filters/search were used
-      const el = document.getElementById("search-results");
-      if (el && typeof el.scrollIntoView === "function") {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      const fetched = await fetchByType(typeValue);
+      setHostels(fetched);
     } catch (err) {
       setError(err?.response?.data?.msg || "Failed to load hostels");
       setHostels([]);
@@ -156,27 +87,34 @@ const FeaturedHostels = () => {
   };
 
   useEffect(() => {
-    const initialLoad = async () => {
-      try {
-        setLoading(true);
-        setError("");
+    loadHostelsByType(selectedType);
+  }, [selectedType]);
 
-        const all = await fetchHostels();
-        const topEight = all.slice(0, 8);
+  useEffect(() => {
+    const hasLocalFilters =
+      String(searchText || "").trim() !== "" ||
+      selectedLocation !== "Any Location" ||
+      selectedGender !== "Any Gender";
 
-        setHostels(all);
-        setVisibleHostels(topEight);
-      } catch (err) {
-        setError(err?.response?.data?.msg || "Failed to load hostels");
-        setHostels([]);
-        setVisibleHostels([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    const backendFilterApplied = selectedType !== "All Hostels";
+    const filtered = applyLocalFilters(hostels);
 
-    initialLoad();
-  }, []);
+    if (!hasLocalFilters && !backendFilterApplied) {
+      setSearchActive(false);
+      setVisibleHostels(hostels.slice(0, 8));
+      return;
+    }
+
+    setSearchActive(true);
+    setVisibleHostels(filtered);
+  }, [hostels, searchText, selectedLocation, selectedGender, selectedType]);
+
+  const runSearch = () => {
+    const el = document.getElementById("search-results");
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const locationOptions = useMemo(() => {
     const uniqueLocations = [
@@ -193,24 +131,11 @@ const FeaturedHostels = () => {
 
   const clearAll = async () => {
     setSearchText("");
+    setSelectedType("All Hostels");
     setSelectedLocation("Any Location");
-    setSelectedSeater("Any Seater");
     setSelectedGender("Any Gender");
     setSearchActive(false);
-    try {
-      setLoading(true);
-      setError("");
-      const all = await fetchHostels();
-      const topEight = all.slice(0, 8);
-      setHostels(all);
-      setVisibleHostels(topEight);
-    } catch (err) {
-      setError(err?.response?.data?.msg || "Failed to load hostels");
-      setHostels([]);
-      setVisibleHostels([]);
-    } finally {
-      setLoading(false);
-    }
+    await loadHostelsByType("All Hostels");
   };
 
   const primaryColor = "#235784";
@@ -219,8 +144,8 @@ const FeaturedHostels = () => {
 
   const isAnyFilterSelected =
     String(searchText || "").trim() !== "" ||
+    selectedType !== "All Hostels" ||
     selectedLocation !== "Any Location" ||
-    selectedSeater !== "Any Seater" ||
     selectedGender !== "Any Gender";
 
   return (
@@ -278,31 +203,30 @@ const FeaturedHostels = () => {
           </div>
 
           {activeFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {/* Filter Type removed per request */}
-
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-gray-400 uppercase">
-                  Room Seater
-                </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              <div className="flex-1 min-w-[200px] relative">
+                <label className="text-xs font-bold text-gray-400 uppercase block mb-1">
+                  Filter Type
+                </label>
                 <div className="relative">
                   <select
-                    value={selectedSeater}
-                    onChange={(e) => setSelectedSeater(e.target.value)}
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
                     className="w-full rounded-xl px-3 py-2.5 bg-gray-50 text-sm text-gray-700 appearance-none border border-[#235784] outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-[#235784] active:border-[#235784]"
                   >
-                    {SEATER_OPTIONS.map((seaterLabel) => (
-                      <option key={seaterLabel} value={seaterLabel}>
-                        {seaterLabel}
+                    {HOSTEL_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
                       </option>
                     ))}
                   </select>
                   <ChevronDown
-                    size={14}
+                    size={16}
                     className="text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
                   />
                 </div>
-              </label>
+              </div>
+
               <div className="flex-1 min-w-[200px] relative">
                 <label className="text-xs font-bold text-gray-400 uppercase block mb-1">
                   Location
@@ -356,7 +280,7 @@ const FeaturedHostels = () => {
       {/* Results Section */}
       <div className="max-w-6xl mx-auto">
         <h2 id="search-results" className="text-3xl font-bold text-center !mb-12 text-gray-800">
-          {searchActive ? "Search Results" : "Latest Hostels"}
+          {searchActive ? "Filtered Hostels" : "Latest Hostels"}
         </h2>
 
         {error && (
