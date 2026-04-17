@@ -1,36 +1,47 @@
 import { useState } from "react";
 import { registerApi, loginApi } from "../api/auth.api";
 import { useAuth } from "../auth/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./style/auth.css";
 import { toast } from "react-toastify";
 
-const AuthModal = ({ isOpen, onClose }) => {
+const AuthModal = ({ isOpen, onClose, returnToPath = "/" }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ role: "student" });
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!isOpen) return null;
 
-  const submit = async () => {
+  const getDashboardPath = (user) => {
+    if (user.role === "student" && !user.quizCompleted) {
+      return "/personality-quiz";
+    }
+    if (user.role === "student") return "/dashboard/user";
+    if (user.role === "owner") return "/dashboard/owner";
+    return "/";
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
     try {
       if (isLogin) {
         const res = await loginApi(form);
         login(res.data);
         onClose?.();
-        
-        // Smart redirect based on role and quiz completion
+
+        // Return user to the page where login was initiated.
+        // If login started from homepage, go to role dashboard instead.
         const user = res.data.user;
-        if (user.role === "student" && !user.quizCompleted) {
-          navigate("/personality-quiz");
-        } else if (user.role === "student") {
-          navigate("/dashboard/user");
-        } else if (user.role === "owner") {
-          navigate("/dashboard/owner");
+        const fromState = location.state?.from;
+        const target = fromState || returnToPath || "/";
+
+        if (target === "/") {
+          navigate(getDashboardPath(user));
         } else {
-          navigate("/"); // admin or other roles
+          navigate(target, { replace: true });
         }
       } else {
         await registerApi(form);
@@ -47,39 +58,53 @@ const AuthModal = ({ isOpen, onClose }) => {
       <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
         <h2>{isLogin ? "Login to Your Account" : "Create Account"}</h2>
 
-        {/* Email */}
-        <input
-          type="email"
-          placeholder="Email"
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-        {/* Password */}
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
+        <form onSubmit={submit}>
 
-        {/* Role select only for registration */}
-        {!isLogin && (
-          <>
-            <input
-              placeholder="Name"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-            >
-              <option value="student">Student</option>
-              <option value="owner">Owner</option>
-            </select>
-          </>
-        )}
+          {/* Email */}
+          <input
+            type="email"
+            placeholder="Email"
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          {/* Password */}
+          <input
+            type="password"
+            placeholder="Password"
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
 
-        <button onClick={submit}>{isLogin ? "Login" : "Register"}</button>
+          {/* Role select only for registration */}
+          {!isLogin && (
+            <>
+              <input
+                placeholder="Name"
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+              >
+                <option value="student">Student</option>
+                <option value="owner">Owner</option>
+              </select>
+            </>
+          )}
 
-        <div className="switch-text" onClick={() => setIsLogin(!isLogin)}>
+          <button type="submit">{isLogin ? "Login" : "Register"}</button>
+        </form>
+
+        <div
+          className="switch-text"
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsLogin(!isLogin)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setIsLogin(!isLogin);
+            }
+          }}
+        >
           {isLogin
             ? "New here? Create an account"
             : "Already have an account? Login"}

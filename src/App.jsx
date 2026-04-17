@@ -17,16 +17,22 @@ import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PersonalityQuizPage from "./pages/PersonalityQuizPage";
 import AuthModal from "./pages/AuthModal";
 import NotFound from "./pages/NotFound";
+import BookingSuccess from "./pages/BookingSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 import { useState } from "react";
 
 // Layout wrapper that conditionally shows Navbar/Footer
-const MainLayout = ({ children, authOpen, setAuthOpen }) => {
+const MainLayout = ({ children, authOpen, setAuthOpen, currentPath }) => {
   return (
     <>
       <Navbar openAuth={() => setAuthOpen(true)} />
       {authOpen && (
-        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+        <AuthModal
+          isOpen={authOpen}
+          onClose={() => setAuthOpen(false)}
+          returnToPath={currentPath}
+        />
       )}
       {children}
       <Footer />
@@ -40,7 +46,7 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
   const navigate = useNavigate();
 
   // Standalone pages (no Navbar/Footer)
-  const standaloneRoutes = ["/booking-success", "/payment-cancel"];
+  const standaloneRoutes = ["/booking-success", "/payment-cancel", "/success", "/cancel"];
   const isStandalone = standaloneRoutes.includes(location.pathname);
 
   if (isStandalone) {
@@ -48,15 +54,30 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
       <Routes>
         <Route path="/booking-success" element={<BookingSuccess />} />
         <Route path="/payment-cancel" element={<PaymentCancel />} />
+        <Route path="/success" element={<BookingSuccess />} />
+        <Route path="/cancel" element={<PaymentCancel />} />
       </Routes>
     );
   }
 
   return (
-    <MainLayout authOpen={authOpen} setAuthOpen={setAuthOpen}>
+    <MainLayout
+      authOpen={authOpen}
+      setAuthOpen={setAuthOpen}
+      currentPath={location.pathname}
+    >
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<AuthModal isOpen={true} onClose={() => navigate("/")} />} />
+        <Route
+          path="/login"
+          element={
+            <AuthModal
+              isOpen={true}
+              onClose={() => navigate("/")}
+              returnToPath={location.state?.from || "/"}
+            />
+          }
+        />
         <Route path="/contact" element={<Contact />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/hostels" element={<Hostels />} />

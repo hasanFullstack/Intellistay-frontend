@@ -1,15 +1,17 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 const ProtectedRoute = ({ role, requiresQuiz = true, children }) => {
   const { user } = useAuth();
+  const location = useLocation();
 
   // Wait for auth initialization to complete before deciding
   const { initializing } = useAuth();
   if (initializing) return null;
 
   // Not logged in
-  if (!user) return <Navigate to="/login" />;
+  if (!user)
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
   // Role mismatch
   if (role && user.role?.toLowerCase() !== role.toLowerCase())

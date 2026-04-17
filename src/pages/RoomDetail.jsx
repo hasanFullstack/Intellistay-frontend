@@ -245,12 +245,15 @@ const RoomDetail = () => {
 
     try {
       setBookingLoading(true);
+      const appOrigin = window.location.origin;
 
       // TEMP: send minimal payload to isolate server error (no images/objects)
       const sessionRes = await createCheckoutSession({
         roomId,
         amount: calculateTotalPrice(),
         currency: "PKR",
+        successUrl: `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${appOrigin}/payment-cancel`,
       });
 
       setShowBookingModal(false);
