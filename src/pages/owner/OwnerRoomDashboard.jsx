@@ -49,9 +49,60 @@ const parseSuggestedPrice = (response, fallback) => {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 };
 
+const addDays = (d, days) => {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
+
+const toDateOnly = (d) => {
+  if (!d) return null;
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const isSameDay = (a, b) => {
+  if (!a || !b) return false;
+  return a.getTime() === b.getTime();
+};
+
+const getBookingPeriod = (booking) => {
+  if (!booking) return { start: null, end: null };
+
+  const startCandidates = [booking.arrivalDate, booking.start, booking.checkIn, booking.createdAt];
+  const endCandidates = [booking.departureDate, booking.end, booking.checkOut];
+
+  const rawStart = startCandidates.find(Boolean);
+  const rawEnd = endCandidates.find(Boolean);
+
+  const nights = Number(booking.nights ?? booking.numberOfNights ?? booking.stayNights ?? 0);
+
+  const start = toDateOnly(rawStart);
+  const end = toDateOnly(rawEnd);
+
+  if (start && end) return { start, end };
+  if (start && nights > 0) {
+    return { start, end: toDateOnly(addDays(start, nights)) };
+  }
+  if (end && nights > 0) {
+    return { start: toDateOnly(addDays(end, -nights)), end };
+  }
+
+  // fallback: if createdAt exists, treat createdAt as start and assume 1 night
+  if (!start && booking.createdAt) {
+    const s = toDateOnly(booking.createdAt);
+    return { start: s, end: toDateOnly(addDays(s, Math.max(1, nights || 1))) };
+  }
+
+  return { start: start || null, end: end || null };
+};
+
 export default function OwnerRoomDashboard({
   hostels = [],
   roomsByHostel = {},
+  bookings = [],
   onDataRefresh,
   loading = false,
 }) {
@@ -66,6 +117,23 @@ export default function OwnerRoomDashboard({
   const [isSyncingPricing, setIsSyncingPricing] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
 
+  const activeBookingCountByRoom = useMemo(() => {
+    const map = {};
+
+    bookings.forEach((booking) => {
+      const status = String(booking?.status || "").toLowerCase();
+      if (!["pending", "confirmed"].includes(status)) return;
+
+      const roomId = booking?.roomId?._id || booking?.roomId;
+      if (!roomId) return;
+
+      const key = String(roomId);
+      map[key] = (map[key] || 0) + 1;
+    });
+
+    return map;
+  }, [bookings]);
+
   const baseRooms = useMemo(() => {
     const rows = [];
 
@@ -74,7 +142,9 @@ export default function OwnerRoomDashboard({
 
       rooms.forEach((room) => {
         const currentPrice = Number(room?.pricePerBed || 0);
-        const status = inferRoomStatus(room);
+        const bookingCount = activeBookingCountByRoom[String(room?._id)] || 0;
+        const baseStatus = inferRoomStatus(room);
+        const status = baseStatus === "Maintenance" ? "Maintenance" : bookingCount > 0 ? "Booked" : baseStatus;
         const roomName = room?.roomLabel
           ? `${room.roomType || "Room"} - ${room.roomLabel}`
           : `${room.roomType || "Room"} - ${String(room?._id || "").slice(-4)}`;
@@ -88,6 +158,7 @@ export default function OwnerRoomDashboard({
           capacity: `${Number(room.totalBeds || 0)} Pax`,
           price: currentPrice,
           status,
+          bookingCount,
           img:
             room?.images?.[0] ||
             hostel?.images?.[0] ||
@@ -98,7 +169,7 @@ export default function OwnerRoomDashboard({
     });
 
     return rows;
-  }, [hostels, roomsByHostel]);
+  }, [hostels, roomsByHostel, activeBookingCountByRoom]);
 
   const allRooms = useMemo(() => {
     return baseRooms.map((room) => ({
@@ -197,6 +268,28 @@ export default function OwnerRoomDashboard({
 
     return { liveAi, fallback };
   }, [allRooms]);
+
+  const checkinStats = useMemo(() => {
+    const today = toDateOnly(new Date());
+    let todaysCheckins = 0;
+    let activeGuests = 0;
+
+    bookings.forEach((b) => {
+      const { start, end } = getBookingPeriod(b);
+      if (!start || !end) return;
+
+      if (isSameDay(start, today)) {
+        todaysCheckins += 1;
+      }
+
+      if (today.getTime() >= start.getTime() && today.getTime() <= end.getTime()) {
+        const beds = Number(b.bedsBooked ?? b.beds ?? b.numberOfGuests ?? b.guests) || 1;
+        activeGuests += beds;
+      }
+    });
+
+    return { todaysCheckins, activeGuests };
+  }, [bookings]);
 
   const exportList = () => {
     const rows = filteredRooms.map((room) => [
@@ -324,7 +417,21 @@ export default function OwnerRoomDashboard({
             <p className="mt-2 text-sm text-[#424754]">Rooms that currently received a live recommendation from the AI pricing controller.</p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-2">
+          <div className="rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Today's Check-ins</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{checkinStats.todaysCheckins}</span>
+              <span className="text-sm text-[#424754]">Check-ins today</span>
+            </div>
+            <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Active Guests</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{checkinStats.activeGuests}</span>
+              <span className="text-sm text-[#424754]">Currently checked-in</span>
+            </div>
+            <p className="mt-2 text-sm text-[#424754]">Counts are derived from owner bookings (uses arrival/departure/nights).</p>
+          </div>
+
+          <div className="rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-1">
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#b54747]">Fallback Pricing</div>
             <div className="mt-2 flex items-end justify-between">
               <span className="text-3xl font-black text-[#131b2e]">{pricingOverview.fallback}</span>
@@ -332,7 +439,7 @@ export default function OwnerRoomDashboard({
             </div>
             <p className="mt-2 text-sm text-[#424754]">If the AI service is unavailable, the dashboard shows the room's saved price instead of failing or exposing unused AI actions.</p>
             {aiUnavailable && (
-              <p className="mt-3 text-xs font-semibold text-[#b54747]">AI service is currently unavailable. Saved room prices are being shown without retry loops.</p>
+              <p className="mt-3 text-xs font-semibold text-[#b54747]">AI service is currently unavailable. Saved room prices are being shown.</p>
             )}
           </div>
         </div>
