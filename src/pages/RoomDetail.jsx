@@ -63,15 +63,11 @@ const RoomDetail = () => {
   // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [startCalendarOpen, setStartCalendarOpen] = useState(false);
-  const [endCalendarOpen, setEndCalendarOpen] = useState(false);
   const [startDisplay, setStartDisplay] = useState("");
-  const [endDisplay, setEndDisplay] = useState("");
   const [bedsBooked, setBedsBooked] = useState(1);
   const [bookingLoading, setBookingLoading] = useState(false);
   const startCalRef = useRef(null);
-  const endCalRef = useRef(null);
   const [showSphereViewer, setShowSphereViewer] = useState(false);
   const [sphereIndex, setSphereIndex] = useState(0);
   const [sphereImages, setSphereImages] = useState([]);
@@ -176,16 +172,12 @@ const RoomDetail = () => {
         if (!startInput || !startInput.contains(e.target))
           setStartCalendarOpen(false);
       }
-      if (endCalRef.current && !endCalRef.current.contains(e.target)) {
-        const endInput = document.querySelectorAll('input[type="date"]')[1];
-        if (!endInput || !endInput.contains(e.target))
-          setEndCalendarOpen(false);
-      }
+
     };
 
     document.addEventListener("mousedown", handleDocClick);
     return () => document.removeEventListener("mousedown", handleDocClick);
-  }, [startDate, endDate]);
+  }, [startDate]);
 
   const handleBooking = () => {
     if (!user) {
@@ -208,33 +200,23 @@ const RoomDetail = () => {
 
   // Calculate stay duration in days for display
   const getStayDuration = () => {
-    if (!startDate || !endDate) return null;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = end - start;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : null;
+    // For now, we only have check-in date, so no duration calculation
+    return null;
   };
 
   const handleSubmitBooking = async () => {
     // Validation
-    if (!startDate || !endDate) {
-      toast.error("Please select check-in and check-out dates");
+    if (!startDate) {
+      toast.error("Please select a check-in date");
       return;
     }
 
     const start = new Date(startDate);
-    const end = new Date(endDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     if (start < today) {
       toast.error("Check-in date cannot be in the past");
-      return;
-    }
-
-    if (end <= start) {
-      toast.error("Check-out date must be after check-in date");
       return;
     }
 
@@ -247,11 +229,13 @@ const RoomDetail = () => {
       setBookingLoading(true);
       const appOrigin = window.location.origin;
 
-      // TEMP: send minimal payload to isolate server error (no images/objects)
+      // Send booking details to payments API
       const sessionRes = await createCheckoutSession({
         roomId,
-        amount: calculateTotalPrice(),
+        quantity: bedsBooked,
         currency: "PKR",
+        startDate: startDate || new Date().toISOString().split("T")[0],
+        bedsBooked,
         successUrl: `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${appOrigin}/payment-cancel`,
       });
@@ -316,10 +300,6 @@ const RoomDetail = () => {
   useEffect(() => {
     setStartDisplay(formatIsoToDDMMYYYY(startDate));
   }, [startDate]);
-
-  useEffect(() => {
-    setEndDisplay(formatIsoToDDMMYYYY(endDate));
-  }, [endDate]);
 
   if (loading) {
     return (
@@ -822,120 +802,49 @@ const RoomDetail = () => {
 
             {/* Modal Body */}
             <div className="px-6 py-6 space-y-5">
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Check-in
-                  </label>
-                  <div className="space-y-2 relative">
-                    <input
-                      type="text"
-                      value={startDisplay}
-                      placeholder="DD/MM/YYYY"
-                      onChange={(e) => {
-                        setStartDisplay(e.target.value);
-                        const iso = parseDDMMYYYYToIso(e.target.value);
-                        if (iso) {
+              {/* Check-in Date */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Check-in
+                </label>
+                <div className="space-y-2 relative">
+                  <input
+                    type="text"
+                    value={startDisplay}
+                    placeholder="DD/MM/YYYY"
+                    onChange={(e) => {
+                      setStartDisplay(e.target.value);
+                      const iso = parseDDMMYYYYToIso(e.target.value);
+                      if (iso) {
+                        setStartDate(iso);
+                      }
+                    }}
+                    onClick={() => setStartCalendarOpen(true)}
+                    onFocus={() => setStartCalendarOpen(true)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-gray-50"
+                  />
+                  {startCalendarOpen && (
+                    <div
+                      ref={startCalRef}
+                      className="absolute left-0 mt-2 z-50 bg-white rounded-lg shadow-lg p-2"
+                    >
+                      <DatePicker
+                        inline
+                        selected={startDate ? new Date(startDate) : null}
+                        onChange={(date) => {
+                          const iso = date
+                            ? date.toISOString().split("T")[0]
+                            : "";
                           setStartDate(iso);
-                          // clear end if invalid
-                          if (endDate && new Date(endDate) <= new Date(iso)) {
-                            setEndDate("");
-                          }
-                        }
-                      }}
-                      onClick={() => setStartCalendarOpen(true)}
-                      onFocus={() => setStartCalendarOpen(true)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-gray-50"
-                    />
-                    {startCalendarOpen && (
-                      <div
-                        ref={startCalRef}
-                        className="absolute left-0 mt-2 z-50 bg-white rounded-lg shadow-lg p-2"
-                      >
-                        <DatePicker
-                          inline
-                          selected={startDate ? new Date(startDate) : null}
-                          onChange={(date) => {
-                            const iso = date
-                              ? date.toISOString().split("T")[0]
-                              : "";
-                            setStartDate(iso);
-                            setStartDisplay(formatIsoToDDMMYYYY(iso));
-                            // if endDate exists and is before new start, clear it
-                            if (endDate && new Date(endDate) <= new Date(iso)) {
-                              setEndDate("");
-                              setEndDisplay("");
-                            }
-                            setStartCalendarOpen(false);
-                            setEndCalendarOpen(true);
-                          }}
-                          minDate={new Date()}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Check-out
-                  </label>
-                  <div className="space-y-2 relative">
-                    <input
-                      type="text"
-                      value={endDisplay}
-                      placeholder="DD/MM/YYYY"
-                      onChange={(e) => {
-                        setEndDisplay(e.target.value);
-                        const iso = parseDDMMYYYYToIso(e.target.value);
-                        if (iso) {
-                          // ensure it's after start
-                          if (
-                            startDate &&
-                            new Date(iso) <= new Date(startDate)
-                          ) {
-                            // invalid - don't set
-                          } else {
-                            setEndDate(iso);
-                          }
-                        }
-                      }}
-                      onClick={() => setEndCalendarOpen(true)}
-                      onFocus={() => setEndCalendarOpen(true)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-gray-50"
-                    />
-                    {endCalendarOpen && (
-                      <div
-                        ref={endCalRef}
-                        className="absolute right-0 mt-2 z-50 bg-white rounded-lg shadow-lg p-2"
-                      >
-                        <DatePicker
-                          inline
-                          selected={endDate ? new Date(endDate) : null}
-                          onChange={(date) => {
-                            const iso = date
-                              ? date.toISOString().split("T")[0]
-                              : "";
-                            setEndDate(iso);
-                            setEndDisplay(formatIsoToDDMMYYYY(iso));
-                            setEndCalendarOpen(false);
-                          }}
-                          minDate={startDate ? new Date(startDate) : new Date()}
-                        />
-                      </div>
-                    )}
-                  </div>
+                          setStartDisplay(formatIsoToDDMMYYYY(iso));
+                          setStartCalendarOpen(false);
+                        }}
+                        minDate={new Date()}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {getStayDuration() && (
-                <p className="text-sm text-gray-500 -mt-2">
-                  📅 {getStayDuration()} day{getStayDuration() > 1 ? "s" : ""}{" "}
-                  stay
-                </p>
-              )}
-
-              {/* Beds selector */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                   Number of Beds

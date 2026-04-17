@@ -50,11 +50,13 @@ const CheckoutPage = () => {
     try {
       setSubmitting(true);
       const appOrigin = window.location.origin;
-      // TEMP: send minimal payload to payments API (avoid images/objects)
+      // Send booking details to payments API
       const sessionRes = await createCheckoutSession({
         roomId,
-        amount: calculateTotalPrice(),
+        quantity: bedsBooked || 1,
         currency: "INR",
+        startDate: startDate || new Date().toISOString().split("T")[0],
+        bedsBooked: bedsBooked || 1,
         successUrl: `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${appOrigin}/payment-cancel`,
       });
