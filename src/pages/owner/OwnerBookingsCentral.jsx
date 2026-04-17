@@ -22,6 +22,22 @@ const parseDate = (value) => {
   return isValidDate(d) ? d : null;
 };
 
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const normalizeNights = (booking) => {
+  const raw =
+    booking?.nights ??
+    booking?.numberOfNights ??
+    booking?.stayNights ??
+    1;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+};
+
 const startOfDay = (d) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -49,21 +65,32 @@ const formatDate = (value) => {
 const fmtCurrency = (n) => `Rs ${Number(n || 0).toLocaleString()}`;
 
 const getBookingPeriod = (booking) => {
-  const start =
+  let start =
     booking?.startDate ||
     booking?.checkInDate ||
     booking?.checkIn ||
     booking?.fromDate ||
+    booking?.arrivalDate ||
+    booking?.createdAt ||
     null;
 
-  const end =
+  let end =
     booking?.endDate ||
     booking?.checkOutDate ||
     booking?.checkOut ||
     booking?.toDate ||
+    booking?.departureDate ||
     null;
 
-  return { start: parseDate(start), end: parseDate(end) };
+  const startDate = parseDate(start);
+  const endDate = parseDate(end);
+  const nights = normalizeNights(booking);
+
+  if (startDate && endDate) return { start: startDate, end: endDate };
+  if (startDate && !endDate) return { start: startDate, end: addDays(startDate, nights) };
+  if (!startDate && endDate) return { start: addDays(endDate, -nights), end: endDate };
+
+  return { start: null, end: null };
 };
 
 const getTabForBooking = (booking) => {
@@ -288,7 +315,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                 key={tab}
                 type="button"
                 onClick={() => setActiveView(tab)}
-                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeView === tab ? "bg-white text-[#0058be] shadow-sm" : "text-[#424754] hover:text-[#131b2e]"}`}
+                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeView === tab ? "bg-white text-[#0058be] !rounded-xl shadow-sm" : "text-[#424754] hover:text-[#131b2e]"}`}
               >
                 {tab}
               </button>

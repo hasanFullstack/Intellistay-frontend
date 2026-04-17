@@ -12,9 +12,10 @@ import {
   Users,
   X,
   Eye,
+  Trash,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { updateHostel } from "../../api/hostel.api";
+import { updateHostel, deleteHostel } from "../../api/hostel.api";
 import { toast } from "react-toastify";
 
 const getStatusFor = (occupancy, revenue) => {
@@ -66,6 +67,7 @@ export default function HostelPortfolio({
     description: "",
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const cards = useMemo(() => {
     return hostels.map((h) => {
@@ -192,6 +194,51 @@ export default function HostelPortfolio({
     }
   };
 
+  const handleDeleteHostel = async () => {
+    const id = editingHostel?.id || editingHostel?.sourceHostel?._id;
+    if (!id) {
+      toast.error("Unable to determine hostel id to delete");
+      return;
+    }
+
+    const ok = window.confirm("Are you sure you want to delete this hostel? This action cannot be undone.");
+    if (!ok) return;
+
+    try {
+      setDeleting(true);
+      await deleteHostel(id);
+      toast.success("Hostel deleted");
+      closeEdit();
+      if (onHostelUpdated) await onHostelUpdated();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete hostel");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteFromCard = async (hostel) => {
+    const id = hostel?.id || hostel?.sourceHostel?._id || hostel?._id;
+    if (!id) {
+      toast.error("Unable to determine hostel id to delete");
+      return;
+    }
+
+    const ok = window.confirm(`Delete ${hostel?.name || 'this hostel'}? This action cannot be undone.`);
+    if (!ok) return;
+
+    try {
+      setDeleting(true);
+      await deleteHostel(id);
+      toast.success("Hostel deleted");
+      if (onHostelUpdated) await onHostelUpdated();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete hostel");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <section className="pb-12 px-4 sm:px-6 lg:px-8 pt-6 lg:pt-10">
       <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -268,7 +315,6 @@ export default function HostelPortfolio({
                 </div>
               </div>
 
-              <p className="text-sm text-slate-500 mb-3 line-clamp-2">{hostel.description}</p>
               <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600 mb-6">
                 <span className="flex items-center gap-1"><BedDouble size={12} /> {hostel.totalRooms}</span>
                 <span className="flex items-center gap-1"><Users size={12} /> {hostel.activeBookings}</span>
@@ -300,43 +346,24 @@ export default function HostelPortfolio({
                 <button
                   type="button"
                   onClick={() => openEdit(hostel)}
-                  className="px-4 bg-surface-container-high text-on-surface-variant rounded-xl hover:bg-surface-container-highest transition-all"
+                  className="px-4 bg-surface-container-high text-on-surface-variant rounded-xl hover:bg-surface-container-highest transition-all hover:scale-105"
                 >
                   <Pencil size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteFromCard(hostel)}
+                  disabled={deleting}
+                  className="px-4 text-red-700 rounded-xl  transition-all hover:scale-105"
+                >
+                  <Trash size={16} />
                 </button>
               </div>
             </div>
           </div>
         ))}
 
-        <div className="md:col-span-2 xl:col-span-3 bg-white rounded-xl p-1 shadow-sm relative overflow-hidden group">
-          <div className="signature-gradient absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity"></div>
-          <div className="relative bg-white rounded-[23px] p-8 flex flex-col md:flex-row items-center gap-12">
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-2 bg-secondary/10 text-secondary px-4 py-1.5 rounded-full mb-6">
-                <Sparkles size={14} />
-                <span className="text-xs font-extrabold uppercase tracking-widest">IntelliInsight AI</span>
-              </div>
-              <h3 className="text-3xl font-extrabold text-on-surface mb-4">{aiInsight.title}</h3>
-              <p className="text-on-surface-variant text-lg mb-8 max-w-xl">
-                {aiInsight.description} Potential monthly revenue lift: <span className="font-bold text-primary">{formatRevenue(aiInsight.lift)}</span>.
-              </p>
-              <button type="button" className="signature-gradient text-white px-8 py-4 rounded-2xl font-bold ai-glow hover:scale-105 transition-all flex items-center gap-3">
-                <Rocket size={18} />
-                Apply AI Pricing
-              </button>
-            </div>
-            <div className="w-full md:w-72 h-48 bg-surface-container-low rounded-xl flex items-center justify-center p-6 border border-primary/10">
-              <div className="w-full flex items-end gap-3 h-full">
-                <div className="w-full bg-primary/20 h-[40%] rounded-t-lg"></div>
-                <div className="w-full bg-primary/30 h-[60%] rounded-t-lg"></div>
-                <div className="w-full bg-primary/40 h-[50%] rounded-t-lg"></div>
-                <div className="w-full signature-gradient h-[90%] rounded-t-lg shadow-lg"></div>
-                <div className="w-full bg-primary/20 h-[30%] rounded-t-lg"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+      
 
         <button
           type="button"
@@ -352,27 +379,53 @@ export default function HostelPortfolio({
       </div>
 
       {editingHostel && (
-        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-center justify-center">
-          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
-              <h3 className="text-xl font-bold">Edit Hostel</h3>
-              <button type="button" onClick={closeEdit} className="p-2 rounded-lg hover:bg-slate-100">
+        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-start justify-center overflow-y-auto">
+          <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h3 className="text-xl font-bold">Edit Hostel</h3>
+                <p className="text-sm text-slate-500">Update basic details for <span className="font-semibold">{editingHostel?.name || editingHostel?.sourceHostel?.name}</span></p>
+              </div>
+              <button type="button" onClick={closeEdit} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input className="border rounded-lg px-3 py-2" placeholder="Hostel Name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} />
-              <input className="border rounded-lg px-3 py-2" placeholder="City" value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} />
-              <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Address Line 1" value={editForm.addressLine1} onChange={(e) => setEditForm((p) => ({ ...p, addressLine1: e.target.value }))} />
-              <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Address Line 2" value={editForm.addressLine2} onChange={(e) => setEditForm((p) => ({ ...p, addressLine2: e.target.value }))} />
-              <textarea className="border rounded-lg px-3 py-2 md:col-span-2" rows={4} placeholder="Description" value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} />
-              <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeEdit} className="px-4 py-2 rounded-lg border">Cancel</button>
-                <button type="button" onClick={handleEditSave} disabled={saving} className="px-4 py-2 rounded-lg bg-primary text-white disabled:opacity-60">
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+
+            <form className="p-0" onSubmit={(e) => { e.preventDefault(); handleEditSave(); }}>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 12 }}>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Hostel Name</label>
+                  <input className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none" placeholder="Hostel Name" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">City</label>
+                  <input className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none" placeholder="City" value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Address Line 1</label>
+                  <input className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none" placeholder="Address Line 1" value={editForm.addressLine1} onChange={(e) => setEditForm((p) => ({ ...p, addressLine1: e.target.value }))} />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Address Line 2</label>
+                  <input className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none" placeholder="Address Line 2" value={editForm.addressLine2} onChange={(e) => setEditForm((p) => ({ ...p, addressLine2: e.target.value }))} />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Description</label>
+                  <textarea className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none resize-none" rows={4} placeholder="Description" value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} />
+                </div>
+
+                <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
+                  <button type="button" onClick={closeEdit} className="px-4 py-2 rounded-full border text-sm hover:bg-slate-50">Cancel</button>
+                  <button type="submit" disabled={saving} className="px-5 py-2 rounded-full bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-bold text-sm disabled:opacity-60">
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}

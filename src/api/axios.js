@@ -24,6 +24,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const skipGlobalErrorToast = Boolean(error.config?.skipGlobalErrorToast);
     // Normalize backend error shapes: some controllers return { msg: '...' }
     const message =
       error.response?.data?.message || error.response?.data?.msg || "Something went wrong";
@@ -47,12 +48,16 @@ api.interceptors.response.use(
 
     // Rate limited
     if (status === 429) {
-      toast.warning("Too many requests. Please slow down.");
+      if (!skipGlobalErrorToast) {
+        toast.warning("Too many requests. Please slow down.");
+      }
     }
 
     // Server error
     if (status >= 500) {
-      toast.error(message || "Server error. Please try again later.");
+      if (!skipGlobalErrorToast) {
+        toast.error(message || "Server error. Please try again later.");
+      }
     }
 
     return Promise.reject(error);

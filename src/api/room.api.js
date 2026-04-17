@@ -16,4 +16,8 @@ export const updateRoom = (roomId, data) => api.put(`/rooms/${roomId}`, data);
 
 export const deleteRoom = (roomId) => api.delete(`/rooms/${roomId}`);
 
-export const getRoomSuggestedPrice = (roomId) => api.get(`/rooms/${roomId}/suggested-price`);
+export const getRoomSuggestedPrice = (roomId, config = {}) =>
+  api.get(`/rooms/${roomId}/suggested-price`, {
+    skipGlobalErrorToast: true,
+    ...config,
+  });

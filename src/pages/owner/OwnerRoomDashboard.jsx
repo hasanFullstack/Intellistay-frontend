@@ -2,18 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Download,
   Plus,
-  Sparkles,
-  TrendingUp,
-  Wrench,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getRoomSuggestedPrice, updateRoom } from "../../api/room.api";
+import { getRoomSuggestedPrice } from "../../api/room.api";
 import AddRoom from "./AddRoom";
 import { toast } from "react-toastify";
 
-const AUTOPILOT_STORAGE_KEY = "owner_room_autopilot";
 const PAGE_SIZE = 8;
 
 const statusClass = {
@@ -53,17 +49,54 @@ const parseSuggestedPrice = (response, fallback) => {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 };
 
-const loadAutopilotMap = () => {
-  try {
-    const raw = localStorage.getItem(AUTOPILOT_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+const addDays = (d, days) => {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + days);
+  return copy;
 };
 
-const saveAutopilotMap = (map) => {
-  localStorage.setItem(AUTOPILOT_STORAGE_KEY, JSON.stringify(map));
+const toDateOnly = (d) => {
+  if (!d) return null;
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const isSameDay = (a, b) => {
+  if (!a || !b) return false;
+  return a.getTime() === b.getTime();
+};
+
+const getBookingPeriod = (booking) => {
+  if (!booking) return { start: null, end: null };
+
+  const startCandidates = [booking.arrivalDate, booking.start, booking.checkIn, booking.createdAt];
+  const endCandidates = [booking.departureDate, booking.end, booking.checkOut];
+
+  const rawStart = startCandidates.find(Boolean);
+  const rawEnd = endCandidates.find(Boolean);
+
+  const nights = Number(booking.nights ?? booking.numberOfNights ?? booking.stayNights ?? 0);
+
+  const start = toDateOnly(rawStart);
+  const end = toDateOnly(rawEnd);
+
+  if (start && end) return { start, end };
+  if (start && nights > 0) {
+    return { start, end: toDateOnly(addDays(start, nights)) };
+  }
+  if (end && nights > 0) {
+    return { start: toDateOnly(addDays(end, -nights)), end };
+  }
+
+  // fallback: if createdAt exists, treat createdAt as start and assume 1 night
+  if (!start && booking.createdAt) {
+    const s = toDateOnly(booking.createdAt);
+    return { start: s, end: toDateOnly(addDays(s, Math.max(1, nights || 1))) };
+  }
+
+  return { start: start || null, end: end || null };
 };
 
 export default function OwnerRoomDashboard({
@@ -77,38 +110,44 @@ export default function OwnerRoomDashboard({
   const [selectedType, setSelectedType] = useState("All Types");
   const [statusFilter, setStatusFilter] = useState("All");
   const [suggestedByRoom, setSuggestedByRoom] = useState({});
-  const [autopilotByRoom, setAutopilotByRoom] = useState(loadAutopilotMap);
+  const [pricingSourceByRoom, setPricingSourceByRoom] = useState({});
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
   const [selectedHostelId, setSelectedHostelId] = useState("");
   const [page, setPage] = useState(1);
-  const [applying, setApplying] = useState(false);
+  const [isSyncingPricing, setIsSyncingPricing] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
 
-  const bookingsByHostel = useMemo(() => {
+  const activeBookingCountByRoom = useMemo(() => {
     const map = {};
-    bookings.forEach((b) => {
-      const hid = b?.hostelId?._id || b?.hostelId;
-      if (!hid) return;
-      if (!map[hid]) map[hid] = [];
-      map[hid].push(b);
+
+    bookings.forEach((booking) => {
+      const status = String(booking?.status || "").toLowerCase();
+      if (!["pending", "confirmed"].includes(status)) return;
+
+      const roomId = booking?.roomId?._id || booking?.roomId;
+      if (!roomId) return;
+
+      const key = String(roomId);
+      map[key] = (map[key] || 0) + 1;
     });
+
     return map;
   }, [bookings]);
 
-  const allRooms = useMemo(() => {
+  const baseRooms = useMemo(() => {
     const rows = [];
 
     hostels.forEach((hostel) => {
       const rooms = roomsByHostel[hostel._id] || [];
-      const hostelBookings = bookingsByHostel[hostel._id] || [];
 
       rooms.forEach((room) => {
         const currentPrice = Number(room?.pricePerBed || 0);
-        const status = inferRoomStatus(room);
+        const bookingCount = activeBookingCountByRoom[String(room?._id)] || 0;
+        const baseStatus = inferRoomStatus(room);
+        const status = baseStatus === "Maintenance" ? "Maintenance" : bookingCount > 0 ? "Booked" : baseStatus;
         const roomName = room?.roomLabel
           ? `${room.roomType || "Room"} - ${room.roomLabel}`
           : `${room.roomType || "Room"} - ${String(room?._id || "").slice(-4)}`;
-
-        const roomBookings = hostelBookings.filter((b) => String(b?.roomId?._id || b?.roomId) === String(room._id));
 
         rows.push({
           id: room._id,
@@ -119,54 +158,85 @@ export default function OwnerRoomDashboard({
           capacity: `${Number(room.totalBeds || 0)} Pax`,
           price: currentPrice,
           status,
-          suggested: suggestedByRoom[room._id] ?? currentPrice,
-          autoPilot: !!autopilotByRoom[room._id],
-          img: room?.images?.[0] || hostel?.images?.[0] || hostel?.photos?.[0] || "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80",
-          room,
-          bookingCount: roomBookings.length,
+          bookingCount,
+          img:
+            room?.images?.[0] ||
+            hostel?.images?.[0] ||
+            hostel?.photos?.[0] ||
+            "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80",
         });
       });
     });
 
     return rows;
-  }, [hostels, roomsByHostel, bookingsByHostel, suggestedByRoom, autopilotByRoom]);
+  }, [hostels, roomsByHostel, activeBookingCountByRoom]);
+
+  const allRooms = useMemo(() => {
+    return baseRooms.map((room) => ({
+      ...room,
+      suggested: suggestedByRoom[room.id] ?? room.price,
+      pricingSource: pricingSourceByRoom[room.id] || "fallback",
+    }));
+  }, [baseRooms, suggestedByRoom, pricingSourceByRoom]);
 
   useEffect(() => {
     let active = true;
-    const fetchSuggested = async () => {
-      const roomIds = allRooms.map((r) => r.id);
-      if (!roomIds.length) {
+
+    const fetchSuggestedPrices = async () => {
+      if (!baseRooms.length) {
         setSuggestedByRoom({});
+        setPricingSourceByRoom({});
+        setAiUnavailable(false);
+        setIsSyncingPricing(false);
         return;
       }
 
+      setIsSyncingPricing(true);
+
       const results = await Promise.all(
-        allRooms.map(async (r) => {
+        baseRooms.map(async (room) => {
           try {
-            const res = await getRoomSuggestedPrice(r.id);
-            return [r.id, parseSuggestedPrice(res, r.price)];
+            const res = await getRoomSuggestedPrice(room.id);
+            return {
+              id: room.id,
+              value: parseSuggestedPrice(res, room.price),
+              source: "ai",
+            };
           } catch {
-            return [r.id, r.price];
+            return {
+              id: room.id,
+              value: room.price,
+              source: "fallback",
+            };
           }
         })
       );
 
       if (!active) return;
-      const next = {};
-      results.forEach(([id, value]) => {
-        next[id] = value;
+
+      const nextSuggested = {};
+      const nextSource = {};
+
+      results.forEach(({ id, value, source }) => {
+        nextSuggested[id] = value;
+        nextSource[id] = source;
       });
-      setSuggestedByRoom(next);
+
+      setSuggestedByRoom(nextSuggested);
+      setPricingSourceByRoom(nextSource);
+      setAiUnavailable(results.every(({ source }) => source === "fallback"));
+      setIsSyncingPricing(false);
     };
 
-    fetchSuggested();
+    fetchSuggestedPrices();
+
     return () => {
       active = false;
     };
-  }, [hostels, roomsByHostel]);
+  }, [baseRooms]);
 
   const roomTypes = useMemo(() => {
-    const unique = [...new Set(allRooms.map((r) => r.type).filter(Boolean))];
+    const unique = [...new Set(allRooms.map((room) => room.type).filter(Boolean))];
     return ["All Types", ...unique];
   }, [allRooms]);
 
@@ -182,7 +252,9 @@ export default function OwnerRoomDashboard({
   const currentPage = Math.min(page, totalPages);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
   }, [page, totalPages]);
 
   const pagedRooms = useMemo(() => {
@@ -190,113 +262,83 @@ export default function OwnerRoomDashboard({
     return filteredRooms.slice(start, start + PAGE_SIZE);
   }, [filteredRooms, currentPage]);
 
-  const revenuePotential = useMemo(() => {
-    const adjustable = allRooms.filter((r) => r.status !== "Maintenance" && r.price > 0);
-    if (!adjustable.length) return 0;
+  const pricingOverview = useMemo(() => {
+    const liveAi = allRooms.filter((room) => room.pricingSource === "ai").length;
+    const fallback = allRooms.filter((room) => room.pricingSource !== "ai").length;
 
-    const avgLift = adjustable.reduce((sum, r) => {
-      const pct = ((r.suggested - r.price) / r.price) * 100;
-      return sum + pct;
-    }, 0) / adjustable.length;
-
-    return Math.max(-99, Math.round(avgLift * 10) / 10);
+    return { liveAi, fallback };
   }, [allRooms]);
 
-  const optimizationSummary = useMemo(() => {
-    const adjustable = allRooms.filter((r) => r.status !== "Maintenance" && r.price > 0);
-    const positive = adjustable.filter((r) => r.suggested > r.price);
+  const checkinStats = useMemo(() => {
+    const today = toDateOnly(new Date());
+    let todaysCheckins = 0;
+    let activeGuests = 0;
 
-    const ratio = adjustable.length ? Math.round((positive.length / adjustable.length) * 100) : 0;
-    const projectedLift = positive.reduce((sum, r) => sum + (r.suggested - r.price), 0);
+    bookings.forEach((b) => {
+      const { start, end } = getBookingPeriod(b);
+      if (!start || !end) return;
 
-    return {
-      ratio,
-      projectedLift,
-    };
-  }, [allRooms]);
+      if (isSameDay(start, today)) {
+        todaysCheckins += 1;
+      }
 
-  const maintenanceQueue = useMemo(() => allRooms.filter((r) => r.status === "Maintenance"), [allRooms]);
-
-  const toggleAutopilot = (roomId) => {
-    setAutopilotByRoom((prev) => {
-      const next = { ...prev, [roomId]: !prev[roomId] };
-      saveAutopilotMap(next);
-      return next;
+      if (today.getTime() >= start.getTime() && today.getTime() <= end.getTime()) {
+        const beds = Number(b.bedsBooked ?? b.beds ?? b.numberOfGuests ?? b.guests) || 1;
+        activeGuests += beds;
+      }
     });
-  };
+
+    return { todaysCheckins, activeGuests };
+  }, [bookings]);
 
   const exportList = () => {
-    const rows = filteredRooms.map((r) => [
-      r.id,
-      r.hostelName,
-      r.name,
-      r.type,
-      r.capacity,
-      r.price.toFixed(2),
-      r.status,
-      r.suggested.toFixed(2),
-      r.autoPilot ? "On" : "Off",
+    const rows = filteredRooms.map((room) => [
+      room.id,
+      room.hostelName,
+      room.name,
+      room.type,
+      room.capacity,
+      room.price.toFixed(2),
+      room.status,
+      room.suggested.toFixed(2),
     ]);
 
     const csv = [
-      ["Room ID", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested", "Autopilot"],
+      ["Room ID", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested"],
       ...rows,
     ]
-      .map((line) => line.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `owner-rooms-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `owner-rooms-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
     toast.success("Room list exported");
   };
 
-  const applyAiPricing = async (onlyAutopilot = false) => {
-    const targetRooms = allRooms.filter(
-      (r) => r.status !== "Maintenance" && (!onlyAutopilot || r.autoPilot)
-    );
-
-    if (!targetRooms.length) {
-      toast.info(onlyAutopilot ? "No auto-pilot rooms to update" : "No rooms available for AI pricing");
-      return;
-    }
-
-    try {
-      setApplying(true);
-      await Promise.all(
-        targetRooms.map((r) =>
-          updateRoom(r.id, {
-            ...r.room,
-            pricePerBed: Number(r.suggested.toFixed(2)),
-          })
-        )
-      );
-      toast.success(`Updated ${targetRooms.length} rooms with AI pricing`);
-      if (onDataRefresh) await onDataRefresh();
-    } catch {
-      toast.error("Failed to apply AI pricing to one or more rooms");
-    } finally {
-      setApplying(false);
-    }
-  };
-
   const handleAddRoomSuccess = async () => {
     setShowAddRoomModal(false);
-    if (onDataRefresh) await onDataRefresh();
+    if (onDataRefresh) {
+      await onDataRefresh();
+    }
   };
+
+  const formatPrice = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 bg-[#faf8ff] font-sans text-[#131b2e]">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <h2 className="text-4xl font-extrabold tracking-tight">Room Inventory</h2>
-          <p className="text-[#424754] font-medium">Manage your {allRooms.length} units with dynamic AI pricing intelligence.</p>
+          <p className="text-[#424754] font-medium">
+            Manage your {allRooms.length} units with AI suggested pricing from the backend service.
+          </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <button
             type="button"
             onClick={exportList}
@@ -312,7 +354,9 @@ export default function OwnerRoomDashboard({
                 toast.info("Add a hostel first before adding rooms");
                 return;
               }
-              if (!selectedHostelId) setSelectedHostelId(hostels[0]._id);
+              if (!selectedHostelId) {
+                setSelectedHostelId(hostels[0]._id);
+              }
               setShowAddRoomModal(true);
             }}
             className="px-8 py-3 rounded-xl bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-bold shadow-lg shadow-blue-500/20 flex items-center gap-2"
@@ -323,8 +367,8 @@ export default function OwnerRoomDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="md:col-span-3 bg-white/70 backdrop-blur-xl p-6 rounded-2xl flex flex-wrap items-center gap-6 shadow-sm">
+      <div className="space-y-4">
+        <div className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl flex flex-wrap items-center gap-6 shadow-sm border border-[#e2e7ff]">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-[#424754] tracking-wider uppercase">Room Type</label>
             <select
@@ -335,11 +379,12 @@ export default function OwnerRoomDashboard({
               }}
               className="bg-[#f2f3ff] border-none rounded-xl text-sm font-semibold p-2 min-w-[160px] focus:ring-2 focus:ring-blue-500/20 outline-none"
             >
-              {roomTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
+              {roomTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
               ))}
             </select>
           </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-[#424754] tracking-wider uppercase">Current Status</label>
             <div className="flex gap-2 flex-wrap">
@@ -360,18 +405,48 @@ export default function OwnerRoomDashboard({
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-[#0058be] to-[#6b38d4] p-6 rounded-2xl text-white relative overflow-hidden flex flex-col justify-center shadow-md">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Revenue Potential</p>
-            <h3 className="text-2xl font-black">{revenuePotential >= 0 ? `+${revenuePotential}%` : `${revenuePotential}%`}</h3>
-            <p className="text-[11px] opacity-90 mt-1">AI optimization can increase monthly yield.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Live AI Pricing</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{pricingOverview.liveAi}</span>
+              <span className="rounded-full bg-[#eaf1ff] px-3 py-1 text-[11px] font-bold text-[#0058be]">
+                {isSyncingPricing ? "Syncing" : "Ready"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-[#424754]">Rooms that currently received a live recommendation from the AI pricing controller.</p>
           </div>
-          <Sparkles className="absolute -right-4 -bottom-4 w-24 h-24 opacity-10" />
+
+          <div className="rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Today's Check-ins</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{checkinStats.todaysCheckins}</span>
+              <span className="text-sm text-[#424754]">Check-ins today</span>
+            </div>
+            <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Active Guests</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{checkinStats.activeGuests}</span>
+              <span className="text-sm text-[#424754]">Currently checked-in</span>
+            </div>
+            <p className="mt-2 text-sm text-[#424754]">Counts are derived from owner bookings (uses arrival/departure/nights).</p>
+          </div>
+
+          <div className="rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-1">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#b54747]">Fallback Pricing</div>
+            <div className="mt-2 flex items-end justify-between">
+              <span className="text-3xl font-black text-[#131b2e]">{pricingOverview.fallback}</span>
+              <span className="rounded-full bg-[#fff2f2] px-3 py-1 text-[11px] font-bold text-[#b54747]">Saved Rate</span>
+            </div>
+            <p className="mt-2 text-sm text-[#424754]">If the AI service is unavailable, the dashboard shows the room's saved price instead of failing or exposing unused AI actions.</p>
+            {aiUnavailable && (
+              <p className="mt-3 text-xs font-semibold text-[#b54747]">AI service is currently unavailable. Saved room prices are being shown.</p>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl p-2 shadow-sm border border-[#e2e7ff] overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[980px]">
+        <table className="w-full text-left border-collapse min-w-[880px]">
           <thead>
             <tr className="text-[#424754]">
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Room Name / Type</th>
@@ -379,13 +454,13 @@ export default function OwnerRoomDashboard({
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Current Price</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Status</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">AI Suggested</th>
-              <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider text-right">AI Auto-Pilot</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {pagedRooms.map((room) => {
               const pct = room.price > 0 ? Math.round(((room.suggested - room.price) / room.price) * 100) : 0;
               const lift = `${pct > 0 ? "+" : ""}${pct}%`;
+
               return (
                 <tr key={room.id} className="hover:bg-[#f2f3ff] transition-colors group">
                   <td className="px-6 py-6">
@@ -411,8 +486,8 @@ export default function OwnerRoomDashboard({
                     </span>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="font-bold">Rs {room.price.toFixed(2)}</div>
-                    <div className="text-[10px] text-[#424754]">Base Rate</div>
+                    <div className="font-bold">{formatPrice(room.price)}</div>
+                    <div className="text-[10px] text-[#424754]">Current saved price</div>
                   </td>
                   <td className="px-6 py-6">
                     <span className={`flex items-center gap-1.5 text-xs font-bold ${statusClass[room.status] || "text-[#424754]"}`}>
@@ -421,28 +496,30 @@ export default function OwnerRoomDashboard({
                     </span>
                   </td>
                   <td className="px-6 py-6">
-                    <div className={`flex items-center gap-2 ${room.status === "Maintenance" ? "opacity-50" : ""}`}>
-                      <span className="font-bold text-[#783eb2]">Rs {room.suggested.toFixed(2)}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
-                        {lift}
-                      </span>
+                    <div className={`space-y-2 ${room.status === "Maintenance" ? "opacity-50" : ""}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#783eb2]">{formatPrice(room.suggested)}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
+                          {lift}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${room.pricingSource === "ai" ? "bg-[#efe8ff] text-[#6b38d4]" : "bg-[#fff1f1] text-[#b54747]"}`}>
+                          {room.pricingSource === "ai" ? "Live AI" : "Fallback"}
+                        </span>
+                        <span className="text-[10px] text-[#424754]">
+                          {room.pricingSource === "ai" ? "Recommended by AI controller" : "Using saved room price"}
+                        </span>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-6 text-right">
-                    <button
-                      type="button"
-                      onClick={() => toggleAutopilot(room.id)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${room.autoPilot ? "bg-[#6b38d4]" : "bg-gray-300"}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${room.autoPilot ? "translate-x-6" : "translate-x-1"}`} />
-                    </button>
                   </td>
                 </tr>
               );
             })}
+
             {!loading && pagedRooms.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-[#424754]">No rooms found for selected filters.</td>
+                <td colSpan={5} className="px-6 py-10 text-center text-[#424754]">No rooms found for selected filters.</td>
               </tr>
             )}
           </tbody>
@@ -456,7 +533,7 @@ export default function OwnerRoomDashboard({
             <button
               type="button"
               disabled={currentPage === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#424754] hover:text-[#0058be] transition-colors shadow-sm disabled:opacity-40"
             >
               <ChevronLeft size={16} />
@@ -465,74 +542,12 @@ export default function OwnerRoomDashboard({
             <button
               type="button"
               disabled={currentPage === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#424754] hover:text-[#0058be] transition-colors shadow-sm disabled:opacity-40"
             >
               <ChevronRight size={16} />
             </button>
           </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-white/70 backdrop-blur-xl p-8 rounded-2xl space-y-4 border border-[#e2e7ff] shadow-sm">
-          <div className="flex items-center gap-3 text-[#783eb2]">
-            <TrendingUp size={20} />
-            <h4 className="font-bold">Market Trend</h4>
-          </div>
-          <p className="text-sm text-[#424754] leading-relaxed">
-            Local demand spike detected for your top performing room categories. Recommended dynamic uplift is reflected in AI suggested prices.
-          </p>
-          <button
-            type="button"
-            onClick={() => applyAiPricing(false)}
-            disabled={applying}
-            className="text-xs font-black text-[#783eb2] uppercase tracking-widest hover:underline disabled:opacity-50"
-          >
-            {applying ? "Applying..." : "Apply to all"}
-          </button>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-xl p-8 rounded-2xl space-y-4 border-2 border-[#0058be]/10 shadow-sm">
-          <div className="flex items-center gap-3 text-[#0058be]">
-            <Sparkles size={20} />
-            <h4 className="font-bold">Optimization Summary</h4>
-          </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <span className="text-3xl font-black text-[#131b2e]">{optimizationSummary.ratio}%</span>
-              <span className="text-xs text-[#424754] ml-1">of rooms</span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs font-bold text-emerald-600">+ Rs {optimizationSummary.projectedLift.toFixed(0)}</span>
-              <div className="text-[10px] text-[#424754] uppercase">Projected Lift</div>
-            </div>
-          </div>
-          <div className="w-full bg-[#e2e7ff] h-2 rounded-full overflow-hidden">
-            <div className="bg-[#0058be] h-full" style={{ width: `${optimizationSummary.ratio}%` }}></div>
-          </div>
-          <button
-            type="button"
-            onClick={() => applyAiPricing(true)}
-            disabled={applying}
-            className="text-xs font-black text-[#0058be] uppercase tracking-widest hover:underline disabled:opacity-50"
-          >
-            {applying ? "Applying..." : "Apply Auto-Pilot Rooms"}
-          </button>
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-xl p-8 rounded-2xl space-y-4 border border-[#e2e7ff] shadow-sm">
-          <div className="flex items-center gap-3 text-[#424754]">
-            <Wrench size={20} />
-            <h4 className="font-bold">Maintenance Queue</h4>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">{maintenanceQueue.length} units pending</span>
-            <span className={`text-xs px-2 py-1 font-bold rounded ${maintenanceQueue.length ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-700"}`}>
-              {maintenanceQueue.length ? "High Priority" : "Clear"}
-            </span>
-          </div>
-          <p className="text-xs text-[#424754] italic">Next scheduled check: Tomorrow, 09:00 AM</p>
         </div>
       </div>
 
@@ -557,8 +572,8 @@ export default function OwnerRoomDashboard({
                   value={selectedHostelId}
                   onChange={(e) => setSelectedHostelId(e.target.value)}
                 >
-                  {hostels.map((h) => (
-                    <option key={h._id} value={h._id}>{h.name}</option>
+                  {hostels.map((hostel) => (
+                    <option key={hostel._id} value={hostel._id}>{hostel.name}</option>
                   ))}
                 </select>
               </div>
