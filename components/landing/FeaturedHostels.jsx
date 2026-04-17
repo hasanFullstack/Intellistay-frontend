@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Heart, ChevronDown } from "lucide-react";
 import { useFavorites } from "../../src/hooks/useFavorites";
 import { getAllHostels } from "../../src/api/hostel.api";
+import { useAuth } from "../../src/auth/AuthContext";
 import { useHostels } from "../../src/context/HostelsContext";
 
 const GENDER_OPTIONS = ["Any Gender", "Male", "Female"];
@@ -22,6 +23,7 @@ const extractCity = (city = "") => {
 
 const FeaturedHostels = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeFilters, setActiveFilters] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedType, setSelectedType] = useState("All Hostels");
@@ -33,6 +35,7 @@ const FeaturedHostels = () => {
   const [error, setError] = useState("");
   const [searchActive, setSearchActive] = useState(false);
   const { hostels: ctxHostels, refresh } = useHostels();
+  const isLoggedIn = Boolean(user?._id);
 
   const latestEight = useMemo(() => {
     return hostels.slice(0, 8);
@@ -94,10 +97,30 @@ const FeaturedHostels = () => {
       setLoading(true);
       setError("");
 
+      if (typeValue === "recommended" && !isLoggedIn) {
+        setHostels([]);
+        setVisibleHostels([]);
+        setError("Log in to use the Recommended filter.");
+        return;
+      }
+
       const fetched = await fetchByType(typeValue);
       setHostels(fetched);
     } catch (err) {
-      setError(err?.response?.data?.msg || "Failed to load hostels");
+      const status = err?.response?.status;
+      const rawMsg = (err?.response?.data?.msg || "").toLowerCase();
+      const isAuthError =
+        status === 401 ||
+        status === 403 ||
+        rawMsg.includes("token") ||
+        rawMsg.includes("unauthorized") ||
+        rawMsg.includes("not authenticated");
+
+      setError(
+        isAuthError
+          ? "Log in to use this filter."
+          : "Unable to load hostels. Please try again later."
+      );
       setHostels([]);
       setVisibleHostels([]);
     } finally {
@@ -107,7 +130,7 @@ const FeaturedHostels = () => {
 
   useEffect(() => {
     loadHostelsByType(selectedType);
-  }, [selectedType, ctxHostels]);
+  }, [selectedType, ctxHostels, isLoggedIn]);
 
   useEffect(() => {
     const hasLocalFilters =
@@ -303,12 +326,14 @@ const FeaturedHostels = () => {
         </h2>
 
         {error && (
-          <p className="text-center text-sm text-amber-600 mb-5">{error}</p>
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <span className="text-sm text-gray-500">{error}</span>
+          </div>
         )}
 
         {loading ? (
           <p className="text-center text-gray-500">Loading hostels...</p>
-        ) : visibleHostels.length === 0 ? (
+        ) : error ? null : visibleHostels.length === 0 ? (
           <p className="text-center text-gray-500">No hostels found.</p>
         ) : (
           <>
