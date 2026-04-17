@@ -13,3 +13,11 @@ export const rejectBooking = (id) => api.put(`/bookings/${id}/reject`);
 // Create a Stripe Checkout session on the server and return the session
 export const createCheckoutSession = (data) =>
   api.post("/payments/create-checkout-session", data);
+
+// Poll for a booking created by the Stripe webhook
+export const getBookingBySession = (sessionId) =>
+  api.get(`/payments/booking-by-session/${sessionId}`);
+
+// Fallback: finalize booking if webhook didn't fire
+export const finalizeBooking = (data) =>
+  api.post("/payments/finalize-booking", data);
