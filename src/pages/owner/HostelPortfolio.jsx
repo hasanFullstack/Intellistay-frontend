@@ -268,7 +268,6 @@ export default function HostelPortfolio({
                 </div>
               </div>
 
-              <p className="text-sm text-slate-500 mb-3 line-clamp-2">{hostel.description}</p>
               <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600 mb-6">
                 <span className="flex items-center gap-1"><BedDouble size={12} /> {hostel.totalRooms}</span>
                 <span className="flex items-center gap-1"><Users size={12} /> {hostel.activeBookings}</span>

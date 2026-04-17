@@ -272,7 +272,7 @@ export default function OwnerDashboard() {
             <KpiCard title="Avg Night Price" value="$65.5" trend="up" trendValue="$4.0" colorClass="text-purple-600" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
             <div className="lg:col-span-2 space-y-8">
               <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                 <div className="flex justify-between items-start mb-8">
@@ -319,21 +319,7 @@ export default function OwnerDashboard() {
               </div>
             </div>
 
-            <div className="space-y-8">
-              <div className="bg-[#f0ebff] p-8 rounded-xl shadow-sm border border-purple-100 flex flex-col h-full">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="p-2 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg text-white">
-                    <span className="material-symbols-outlined">bolt</span>
-                  </div>
-                  <h3 className="text-xl font-bold">Intelli Insights</h3>
-                </div>
-                <div className="space-y-6">
-                  <InsightCard title="Demand Surge Detected" description="Demand is increasing in Lahore. Adjust inventory for the festival week." type="Growth Opportunity" borderClass="border-blue-600" actionText="Dismiss" />
-                  <InsightCard title="Dynamic Pricing Alert" description="Weekend pricing can be optimized by +12% based on local occupancy." type="Revenue Boost" borderClass="border-purple-600" />
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold py-3 rounded-lg shadow-md">Apply All Recommendations</button>
-                </div>
-              </div>
-            </div>
+           
           </div>
           </div>
         )}

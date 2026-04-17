@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  UserCircle,
-  Sparkles,
-  Zap,
-  Landmark,
-  Eye,
-  RefreshCw,
-  HelpCircle,
-  ArrowRight,
-  EyeOff,
-} from "lucide-react";
+import { UserCircle, Landmark, Eye, RefreshCw, EyeOff } from "lucide-react";
 import { toast } from "react-toastify";
 import { updateHostel } from "../../api/hostel.api";
 import {
@@ -18,20 +8,6 @@ import {
   deleteStripeKeys,
 } from "../../api/ownerStripe.api";
 
-const RULES_KEY = "owner_ai_pricing_rules";
-
-const readStoredRules = () => {
-  try {
-    const raw = localStorage.getItem(RULES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeStoredRules = (payload) => {
-  localStorage.setItem(RULES_KEY, JSON.stringify(payload));
-};
 
 export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
   const [selectedHostelId, setSelectedHostelId] = useState("");
@@ -41,9 +17,6 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
   const [description, setDescription] = useState("");
   const [profileUpdating, setProfileUpdating] = useState(false);
 
-  const [autoPricing, setAutoPricing] = useState(true);
-  const [floorPrice, setFloorPrice] = useState(2400);
-  const [ceilingPrice, setCeilingPrice] = useState(8500);
 
   const [stripeLoading, setStripeLoading] = useState(true);
   const [stripeSaving, setStripeSaving] = useState(false);
@@ -78,12 +51,6 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     setHostelName(selectedHostel.name || "");
     setContactEmail(selectedHostel.contactEmail || selectedHostel.email || "");
     setDescription(selectedHostel.description || "");
-
-    const stored = readStoredRules();
-    const rules = stored[selectedHostel._id] || {};
-    setAutoPricing(typeof rules.autoPricing === "boolean" ? rules.autoPricing : true);
-    setFloorPrice(Number.isFinite(rules.floorPrice) ? rules.floorPrice : 2400);
-    setCeilingPrice(Number.isFinite(rules.ceilingPrice) ? rules.ceilingPrice : 8500);
   }, [selectedHostel]);
 
   const loadStripe = async () => {
@@ -156,29 +123,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     }
   };
 
-  const handleSaveRules = () => {
-    if (floorPrice <= 0 || ceilingPrice <= 0) {
-      toast.error("Floor and ceiling prices must be positive");
-      return;
-    }
-    if (floorPrice > ceilingPrice) {
-      toast.error("Floor price cannot be above ceiling price");
-      return;
-    }
-    if (!selectedHostel?._id) {
-      toast.error("No hostel selected");
-      return;
-    }
-
-    const stored = readStoredRules();
-    stored[selectedHostel._id] = {
-      autoPricing,
-      floorPrice,
-      ceilingPrice,
-    };
-    writeStoredRules(stored);
-    toast.success("AI pricing rules saved");
-  };
+  
 
   const handleStripeSave = async () => {
     if (stripeConfigured) {
@@ -235,10 +180,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       toast.error(err?.response?.data?.message || "Failed to remove keys");
     }
   };
-
-  const openSupport = () => {
-    window.open("mailto:support@intellistay.app?subject=Owner%20Settings%20Support", "_blank");
-  };
+  
 
   return (
     <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto bg-[#faf8ff] font-sans text-[#131b2e]">
@@ -319,84 +261,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
               </div>
             </div>
           </section>
-
-          <section className="bg-white p-8 rounded-2xl shadow-sm border border-[#0058be]/5 relative overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none shadow-[0_0_20px_0_rgba(107,56,212,0.1)]" />
-
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl font-extrabold text-[#131b2e] flex items-center gap-2">
-                  AI Pricing Rules
-                  <span className="text-[10px] bg-[#6b38d4] text-white px-2 py-0.5 rounded-full uppercase tracking-widest font-black">Pro</span>
-                </h2>
-                <p className="text-sm text-[#424754]">Dynamic automation based on market demand.</p>
-              </div>
-              <Sparkles className="text-[#6b38d4] w-8 h-8" />
-            </div>
-
-            <div className="space-y-8">
-              <div className="flex items-center justify-between p-6 bg-[#f2f3ff] rounded-2xl border border-[#6b38d4]/10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[#6b38d4]/10 flex items-center justify-center text-[#6b38d4]">
-                    <Zap size={24} fill="currentColor" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#131b2e]">Enable AI Auto-Pricing</p>
-                    <p className="text-sm text-[#424754]">Let IntelliStay adjust rates automatically.</p>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoPricing}
-                    onChange={(e) => setAutoPricing(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-14 h-8 bg-[#d2d9f4] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#6b38d4]"></div>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-[#f2f3ff] rounded-2xl">
-                  <label className="block text-xs font-black text-[#424754] uppercase tracking-tighter mb-1">Floor Price (Min)</label>
-                  <div className="text-2xl font-black text-[#131b2e]">Rs {floorPrice.toLocaleString()}</div>
-                  <input
-                    className="w-full h-1 bg-[#d2d9f4] rounded-lg appearance-none cursor-pointer accent-[#6b38d4] mt-2"
-                    type="range"
-                    min={500}
-                    max={20000}
-                    step={100}
-                    value={floorPrice}
-                    onChange={(e) => setFloorPrice(Number(e.target.value))}
-                  />
-                </div>
-                <div className="p-4 bg-[#f2f3ff] rounded-2xl">
-                  <label className="block text-xs font-black text-[#424754] uppercase tracking-tighter mb-1">Ceiling Price (Max)</label>
-                  <div className="text-2xl font-black text-[#131b2e]">Rs {ceilingPrice.toLocaleString()}</div>
-                  <input
-                    className="w-full h-1 bg-[#d2d9f4] rounded-lg appearance-none cursor-pointer accent-[#6b38d4] mt-2"
-                    type="range"
-                    min={1000}
-                    max={50000}
-                    step={100}
-                    value={ceilingPrice}
-                    onChange={(e) => setCeilingPrice(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveRules}
-                  disabled={!selectedHostelId}
-                  className="px-6 py-3 bg-[#6b38d4] text-white font-bold rounded-full hover:opacity-90 transition-all disabled:opacity-50"
-                >
-                  Save AI Rules
-                </button>
-              </div>
-            </div>
-          </section>
+          
         </div>
 
         <div className="lg:col-span-5 space-y-8">
@@ -510,26 +375,6 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                 </button>
               </div>
             )}
-          </section>
-
-          <section className="bg-[#e2e7ff] p-8 rounded-2xl">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center">
-                <HelpCircle className="text-[#0058be] w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-black text-[#131b2e]">Need help with setup?</h3>
-              <p className="text-[#424754] text-sm">
-                Our 24/7 technical team can help you map your rooms or connect custom domains.
-              </p>
-              <button
-                type="button"
-                onClick={openSupport}
-                className="text-[#0058be] font-bold hover:underline flex items-center gap-1"
-              >
-                Open Live Chat
-                <ArrowRight size={16} />
-              </button>
-            </div>
           </section>
         </div>
       </div>
