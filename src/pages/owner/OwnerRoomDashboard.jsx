@@ -15,24 +15,23 @@ const PAGE_SIZE = 8;
 const statusClass = {
   Available: "text-emerald-600",
   Booked: "text-[#0058be]",
-  Maintenance: "text-red-600",
 };
 
 const statusDotClass = {
   Available: "bg-emerald-600",
   Booked: "bg-[#0058be]",
-  Maintenance: "bg-red-600",
 };
 
 const inferRoomStatus = (room) => {
   if (room?.status) {
     const normalized = String(room.status).toLowerCase();
-    if (normalized.includes("maint")) return "Maintenance";
     if (normalized.includes("book") || normalized.includes("full")) return "Booked";
-    if (normalized.includes("avail")) return "Available";
+    if (normalized.includes("avail") || normalized.includes("available")) return "Available";
+    // ignore maintenance markers for this dashboard
   }
 
-  if (room?.isUnderMaintenance || room?.maintenanceRequired) return "Maintenance";
+  // treat maintenance-marked rooms as available on this dashboard
+  if (room?.isUnderMaintenance || room?.maintenanceRequired) return "Available";
   if (Number(room?.availableBeds) === 0) return "Booked";
   return "Available";
 };
@@ -388,7 +387,7 @@ export default function OwnerRoomDashboard({
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-[#424754] tracking-wider uppercase">Current Status</label>
             <div className="flex gap-2 flex-wrap">
-              {["All", "Available", "Booked", "Maintenance"].map((status) => (
+              {["All", "Available", "Booked"].map((status) => (
                 <button
                   key={status}
                   type="button"
@@ -406,15 +405,15 @@ export default function OwnerRoomDashboard({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
+          <div className="flex flex-col justify-between rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0058be]">Live AI Pricing</div>
-            <div className="mt-2 flex items-end justify-between">
+            <div className="mt-2 flex items-center justify-between">
               <span className="text-3xl font-black text-[#131b2e]">{pricingOverview.liveAi}</span>
               <span className="rounded-full bg-[#eaf1ff] px-3 py-1 text-[11px] font-bold text-[#0058be]">
                 {isSyncingPricing ? "Syncing" : "Ready"}
               </span>
             </div>
-            <p className="mt-2 text-sm text-[#424754]">Rooms that currently received a live recommendation from the AI pricing controller.</p>
+            <p className="mt-2  text-sm text-[#424754] self-end">Rooms that currently received a live recommendation from the AI pricing controller.</p>
           </div>
 
           <div className="rounded-2xl bg-white border border-[#dce6ff] p-5 shadow-sm">
@@ -431,7 +430,7 @@ export default function OwnerRoomDashboard({
             <p className="mt-2 text-sm text-[#424754]">Counts are derived from owner bookings (uses arrival/departure/nights).</p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-1">
+          <div className="flex flex-col justify-between rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-1">
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#b54747]">Fallback Pricing</div>
             <div className="mt-2 flex items-end justify-between">
               <span className="text-3xl font-black text-[#131b2e]">{pricingOverview.fallback}</span>
@@ -496,7 +495,7 @@ export default function OwnerRoomDashboard({
                     </span>
                   </td>
                   <td className="px-6 py-6">
-                    <div className={`space-y-2 ${room.status === "Maintenance" ? "opacity-50" : ""}`}>
+                      <div className={`space-y-2`}>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-[#783eb2]">{formatPrice(room.suggested)}</span>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
@@ -508,7 +507,7 @@ export default function OwnerRoomDashboard({
                           {room.pricingSource === "ai" ? "Live AI" : "Fallback"}
                         </span>
                         <span className="text-[10px] text-[#424754]">
-                          {room.pricingSource === "ai" ? "Recommended by AI controller" : "Using saved room price"}
+                          {room.pricingSource === "ai" ? "Recommended by AI" : "Using saved room price"}
                         </span>
                       </div>
                     </div>
