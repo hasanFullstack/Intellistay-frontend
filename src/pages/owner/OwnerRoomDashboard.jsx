@@ -36,16 +36,20 @@ const inferRoomStatus = (room) => {
   return "Available";
 };
 
-const parseSuggestedPrice = (response, fallback) => {
+const parseSuggestedPrice = (response) => {
   const data = response?.data;
   const val =
+    data?.suggested_price ??
     data?.suggestedPrice ??
     data?.price ??
     data?.suggested ??
+    data?.data?.suggested_price ??
     data?.data?.suggestedPrice ??
     data?.data?.price;
+
   const n = Number(val);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
 };
 
 const addDays = (d, days) => {
@@ -196,10 +200,11 @@ export default function OwnerRoomDashboard({
         baseRooms.map(async (room) => {
           try {
             const res = await getRoomSuggestedPrice(room.id);
+            const aiPrice = parseSuggestedPrice(res);
             return {
               id: room.id,
-              value: parseSuggestedPrice(res, room.price),
-              source: "ai",
+              value: aiPrice ?? room.price,
+              source: aiPrice ? "ai" : "fallback",
             };
           } catch {
             return {
