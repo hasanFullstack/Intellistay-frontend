@@ -7,6 +7,7 @@ import {
   saveStripeKeys,
   deleteStripeKeys,
 } from "../../api/ownerStripe.api";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 
 export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
@@ -85,7 +86,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       setAccountId("");
       setHasStoredSecret(false);
       setStripeConfigured(false);
-      toast.error(err?.response?.data?.message || "Failed to load Stripe keys");
+      toast.error(getErrorMessage(err, "Failed to load Stripe keys"));
     } finally {
       setStripeLoading(false);
     }
@@ -117,7 +118,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       toast.success("Profile updated");
       if (onDataRefresh) await onDataRefresh();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to update profile");
+      toast.error(getErrorMessage(err, "Failed to update profile"));
     } finally {
       setProfileUpdating(false);
     }
@@ -159,7 +160,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       setHasStoredSecret(true);
       setStripeConfigured(true);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to save Stripe settings");
+      toast.error(getErrorMessage(err, "Failed to save Stripe settings"));
     } finally {
       setStripeSaving(false);
     }
@@ -177,7 +178,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       setStripeConfigured(false);
       toast.success("Stripe keys removed");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to remove keys");
+      toast.error(getErrorMessage(err, "Failed to remove keys"));
     }
   };
   

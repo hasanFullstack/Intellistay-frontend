@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { registerApi, loginApi } from "../api/auth.api";
 import { useAuth } from "../auth/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./style/auth.css";
 import { toast } from "react-toastify";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 const AuthModal = ({ isOpen, onClose, returnToPath = "/" }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ role: "student" });
+  const location = useLocation();
+  const initialAuthMode = location.state?.authMode === "register" ? false : true;
+  const initialRole = location.state?.role === "owner" ? "owner" : "student";
+  const [isLogin, setIsLogin] = useState(initialAuthMode);
+  const [form, setForm] = useState({ role: initialRole });
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+
+  useEffect(() => {
+    const nextIsLogin = location.state?.authMode === "register" ? false : true;
+    const nextRole = location.state?.role === "owner" ? "owner" : "student";
+    setIsLogin(nextIsLogin);
+    setForm((prev) => ({ ...prev, role: nextRole }));
+  }, [location.state]);
 
   if (!isOpen) return null;
 
@@ -49,7 +59,7 @@ const AuthModal = ({ isOpen, onClose, returnToPath = "/" }) => {
         setIsLogin(true);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Something went wrong");
+      toast.error(getErrorMessage(err, "Something went wrong"));
     }
   };
 

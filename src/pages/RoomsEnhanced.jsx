@@ -1,51 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 
 import { useHostels } from "../context/HostelsContext";
 import { getAllRooms, getRoomOccupants } from "../api/room.api";
+import OwnerCtaBanner from "../../components/OwnerCtaBanner";
 import "./Rooms.css";
-
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-const CITY_COORDS = {
-  lahore: [31.5204, 74.3587],
-  karachi: [24.8607, 67.0011],
-  islamabad: [33.6844, 73.0479],
-  rawalpindi: [33.5651, 73.0169],
-  faisalabad: [31.4504, 73.135],
-  multan: [30.1575, 71.5249],
-  peshawar: [34.0151, 71.5249],
-};
-
-const FALLBACK_COORD = [31.5204, 74.3587];
-
-const hashString = (value = "") =>
-  [...value].reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-const getHostelCoords = (hostel, index = 0) => {
-  const lat = Number(hostel?.latitude ?? hostel?.lat);
-  const lng = Number(hostel?.longitude ?? hostel?.lng ?? hostel?.long);
-
-  if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
-
-  const cityKey = (hostel?.city || "").toLowerCase().trim();
-  const base = CITY_COORDS[cityKey] || FALLBACK_COORD;
-
-  const seed = hashString(String(hostel?._id || hostel?.name || index));
-  const offsetLat = ((seed % 30) - 15) * 0.0015;
-  const offsetLng = (((seed * 7) % 30) - 15) * 0.0015;
-
-  return [base[0] + offsetLat, base[1] + offsetLng];
-};
 
 const getCompatibilityLabel = (score) => {
   if (score >= 80) return "Excellent";
@@ -56,11 +16,8 @@ const getCompatibilityLabel = (score) => {
 
 const RoomsEnhanced = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const [hostels, setHostels] = useState([]);
-  const [hostelSearch, setHostelSearch] = useState("");
-  const [selectedHostel, setSelectedHostel] = useState("all");
 
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,17 +36,11 @@ const RoomsEnhanced = () => {
     minBeds: "",
     maxBeds: "",
     gender: "all",
-    amenities: [],
     roommateMode: "all", // all | shared-only | high-match
   });
 
-  const [highlightedRoom, setHighlightedRoom] = useState(null);
-  const [showMap, setShowMap] = useState(true);
-
   const [compatibilityByRoom, setCompatibilityByRoom] = useState({});
   const [expandedRoommates, setExpandedRoommates] = useState({});
-
-  const roomRefs = useRef({});
 
   const token = localStorage.getItem("token");
 
@@ -99,49 +50,6 @@ const RoomsEnhanced = () => {
     return map;
   }, [hostels]);
 
-  const filteredHostels = useMemo(() => {
-    const query = hostelSearch.trim().toLowerCase();
-    if (!query) return hostels;
-    return hostels.filter(
-      (h) =>
-        h?.name?.toLowerCase().includes(query) ||
-        h?.city?.toLowerCase().includes(query) ||
-        h?.addressLine1?.toLowerCase().includes(query),
-    );
-  }, [hostels, hostelSearch]);
-
-  const amenityOptions = useMemo(() => {
-    const source =
-      selectedHostel === "all"
-        ? hostels
-        : hostels.filter((h) => String(h._id) === String(selectedHostel));
-
-    const all = new Set();
-    source.forEach((h) => (h.amenities || []).forEach((a) => all.add(a)));
-
-    return [...all].sort((a, b) => a.localeCompare(b));
-  }, [hostels, selectedHostel]);
-
-  const roomMarkers = useMemo(() => {
-    return rooms.map((room, idx) => {
-      const hostel =
-        typeof room.hostelId === "object"
-          ? room.hostelId
-          : hostelById.get(String(room.hostelId));
-      const coords = getHostelCoords(hostel, idx);
-      return {
-        room,
-        hostel,
-        coords,
-      };
-    });
-  }, [rooms, hostelById]);
-
-  const mapCenter = useMemo(() => {
-    if (roomMarkers.length > 0) return roomMarkers[0].coords;
-    return FALLBACK_COORD;
-  }, [roomMarkers]);
-
   const displayedRooms = useMemo(() => {
     if (filters.roommateMode !== "high-match") return rooms;
 
@@ -150,11 +58,6 @@ const RoomsEnhanced = () => {
       return Number(payload?.bestScore || 0) >= 65;
     });
   }, [rooms, filters.roommateMode, compatibilityByRoom]);
-
-  useEffect(() => {
-    const preselected = searchParams.get("hostel");
-    if (preselected) setSelectedHostel(preselected);
-  }, [searchParams]);
 
   const { hostels: ctxHostels, loading: ctxLoading, refresh } = useHostels();
 
@@ -183,7 +86,7 @@ const RoomsEnhanced = () => {
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, selectedHostel, filters]);
+  }, [currentPage, filters]);
 
   useEffect(() => {
     const fetchCompatibility = async () => {
@@ -267,17 +170,11 @@ const RoomsEnhanced = () => {
         minBeds: filters.minBeds || undefined,
         maxBeds: filters.maxBeds || undefined,
         gender: filters.gender,
-        amenities:
-          filters.amenities.length > 0
-            ? filters.amenities.join(",")
-            : undefined,
         roommateMode:
           filters.roommateMode === "high-match"
             ? "shared-only"
             : filters.roommateMode,
       };
-
-      if (selectedHostel !== "all") params.hostelId = selectedHostel;
 
       const res = await getAllRooms({ params });
 
@@ -309,27 +206,6 @@ const RoomsEnhanced = () => {
     }
   };
 
-  const onHostelSelect = (hostelId) => {
-    setSelectedHostel(hostelId);
-    setCurrentPage(1);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (hostelId === "all") next.delete("hostel");
-      else next.set("hostel", hostelId);
-      return next;
-    });
-  };
-
-  const toggleAmenity = (amenity) => {
-    setCurrentPage(1);
-    setFilters((prev) => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter((a) => a !== amenity)
-        : [...prev.amenities, amenity],
-    }));
-  };
-
   const updateFilter = (key, value) => {
     setCurrentPage(1);
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -344,61 +220,23 @@ const RoomsEnhanced = () => {
       minBeds: "",
       maxBeds: "",
       gender: "all",
-      amenities: [],
       roommateMode: "all",
     });
-  };
-
-  const handleMarkerClick = (roomId) => {
-    setHighlightedRoom(roomId);
-    const target = roomRefs.current[roomId];
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
   };
 
   return (
     <div className="rooms-page">
       <div className="container-fluid rooms-shell">
         <div className="rooms-header">
-          <h1 className="rooms-title">Find Your Perfect Room</h1>
+          <h1 className="rooms-title">Find Your Ideal Room</h1>
           <p className="rooms-subtitle">
-            Filter smarter, compare faster, and match with the right roommates.
+            Explore verified options with clear pricing, availability, and roommate compatibility.
           </p>
-        </div>
-
-        <div className="hostel-picker-card">
-          <div className="hostel-picker-top">
-            <h5 className="m-0">Hostels</h5>
-            <input
-              type="text"
-              className="form-control hostel-search"
-              placeholder="Search hostels by name or city"
-              value={hostelSearch}
-              onChange={(e) => setHostelSearch(e.target.value)}
-            />
-          </div>
-
-          <div className="hostel-chip-row">
-            <button
-              className={`hostel-chip ${selectedHostel === "all" ? "active" : ""}`}
-              onClick={() => onHostelSelect("all")}
-            >
-              All Hostels
-            </button>
-            {filteredHostels.map((hostel) => (
-              <button
-                key={hostel._id}
-                className={`hostel-chip ${
-                  selectedHostel === hostel._id ? "active" : ""
-                }`}
-                onClick={() => onHostelSelect(hostel._id)}
-              >
-                <span className="chip-name">{hostel.name}</span>
-                <span className="chip-location">{hostel.city}</span>
-              </button>
-            ))}
-          </div>
+          {!loading && (
+            <div className="mt-2 text-muted small">
+              {displayedRooms.length} room{displayedRooms.length === 1 ? "" : "s"} available
+            </div>
+          )}
         </div>
 
         <div className="rooms-filters-sticky">
@@ -462,37 +300,15 @@ const RoomsEnhanced = () => {
             </select>
           </div>
 
-          {amenityOptions.length > 0 && (
-            <div className="amenity-chip-row">
-              {amenityOptions.map((amenity) => (
-                <button
-                  key={amenity}
-                  className={`amenity-chip ${
-                    filters.amenities.includes(amenity) ? "active" : ""
-                  }`}
-                  onClick={() => toggleAmenity(amenity)}
-                >
-                  {amenity}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="filters-actions">
             <button className="btn btn-sm btn-outline-dark" onClick={clearFilters}>
               Reset Filters
-            </button>
-            <button
-              className="btn btn-sm btn-outline-primary"
-              onClick={() => setShowMap((prev) => !prev)}
-            >
-              {showMap ? "Hide Map" : "Show Map"}
             </button>
           </div>
         </div>
 
         <div className="row g-4 mt-1">
-          <div className={showMap ? "col-xl-7" : "col-12"}>
+          <div className="col-12">
             {loading ? (
               <div className="loading-box">Loading rooms...</div>
             ) : displayedRooms.length === 0 ? (
@@ -515,13 +331,7 @@ const RoomsEnhanced = () => {
                     return (
                       <div
                         key={room._id}
-                        ref={(el) => {
-                          if (el) roomRefs.current[room._id] = el;
-                        }}
-                        className={`room-card ${
-                          highlightedRoom === room._id ? "highlighted" : ""
-                        }`}
-                        onMouseEnter={() => setHighlightedRoom(room._id)}
+                        className="room-card"
                       >
                         <div className="room-image-section">
                           <img
@@ -673,52 +483,9 @@ const RoomsEnhanced = () => {
               </>
             )}
           </div>
-
-          {showMap && (
-            <div className="col-xl-5">
-              <div className="map-card">
-                <div className="map-title">Map View</div>
-                <MapContainer
-                  center={mapCenter}
-                  zoom={12}
-                  scrollWheelZoom={false}
-                  className="rooms-map"
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-
-                  {roomMarkers.map(({ room, hostel, coords }) => (
-                    <Marker
-                      key={room._id}
-                      position={coords}
-                      eventHandlers={{
-                        click: () => handleMarkerClick(room._id),
-                      }}
-                    >
-                      <Popup>
-                        <div className="map-popup">
-                          <strong>{hostel?.name || "Hostel"}</strong>
-                          <div>{room.roomType}</div>
-                          <div>Rs {room.pricePerBed}/month</div>
-                          <button
-                            className="btn btn-sm btn-dark mt-2"
-                            onClick={() =>
-                              navigate(`/room/${room._id}/${hostel?._id || room.hostelId}`)
-                            }
-                          >
-                            Quick Book
-                          </button>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
-              </div>
-            </div>
-          )}
         </div>
+
+        <OwnerCtaBanner className="mt-10" />
       </div>
     </div>
   );

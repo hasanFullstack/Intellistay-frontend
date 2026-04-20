@@ -5,9 +5,33 @@ import {
 } from "react-icons/fa";
 import { BsTwitterX } from "react-icons/bs";
 import { FaArrowRightLong  } from "react-icons/fa6";
+import { Link } from "react-router-dom";
+import { useAuth } from "../src/auth/AuthContext";
 
 
 const Footer = () => {
+    const { user } = useAuth();
+
+    const primaryLinks = [
+        { label: "Home", to: "/" },
+        { label: "Hostels", to: "/hostels" },
+        { label: "Rooms", to: "/rooms" },
+        { label: "Contact", to: "/contact" },
+    ];
+
+    const dashboardLink = user?._id
+        ? {
+            label: user?.role === "owner" ? "Owner Dashboard" : "Student Dashboard",
+            to: user?.role === "owner" ? "/dashboard/owner" : "/dashboard/user",
+        }
+        : { label: "Login / Register", to: "/login" };
+
+    const accountLinks = [
+        { label: "Become Owner", to: "/become-owner" },
+        dashboardLink,
+        { label: "Book a Room", to: "/rooms" },
+    ];
+
     return (
         <footer className="relative text-white min-h-[750px] overflow-hidden">
             {/* Background */}
@@ -23,7 +47,7 @@ const Footer = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-black/100 via-black/90 to-transparent"></div>
 
             {/* Content flex container for min height */}
-            <div className="relative max-w-7xl mx-auto px-6 pt-16 pb-40 md:py-20 md:pb-48 flex flex-col justify-between h-full">
+            <div className="relative max-w-7xl mx-auto px-6 pt-16 pb-28 md:pt-20 md:pb-40 flex flex-col justify-between h-full">
 
                 {/* TOP ROW (Newsletter LEFT + Links RIGHT) */}
                 <div className="flex flex-col lg:flex-row justify-between items-start gap-12">
@@ -48,23 +72,39 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT → Pages + Resources */}
+                    {/* RIGHT → Project Links */}
                     <div className="flex flex-col sm:flex-row gap-10 sm:gap-16">
                         <div>
-                            <h4 className="font-semibold mb-4">Pages</h4>
-                            <ul className="space-y-2 text-gray-1000 p-0 m-0 list-none">
-                                <li className="hover:text-white cursor-pointer mb-4">Home</li>
-                                <li className="hover:text-white cursor-pointer mb-4">About-Us</li>
-                                <li className="hover:text-white cursor-pointer mb-4">Contact-Us</li>
+                            <h4 className="font-semibold mb-4">Explore</h4>
+                            <ul className="space-y-2 text-gray-300 p-0 m-0 list-none">
+                                {primaryLinks.map((link) => (
+                                    <li key={link.to} className="mb-4">
+                                        <Link
+                                            to={link.to}
+                                            className="!no-underline visited:!no-underline hover:!no-underline"
+                                            style={{ color: "rgba(255,255,255,0.9)", textDecoration: "none" }}
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
 
                         <div>
-                            <h4 className="font-semibold mb-4">Resources</h4>
+                            <h4 className="font-semibold mb-4">Account</h4>
                             <ul className="space-y-2 text-gray-300 p-0 m-0 list-none">
-                                <li className="hover:text-white cursor-pointer mb-4">FAQS</li>
-                                <li className="hover:text-white cursor-pointer mb-4">Privacy Policy</li>
-                                <li className="hover:text-white cursor-pointer mb-4">Terms & Conditions</li>
+                                {accountLinks.map((link) => (
+                                    <li key={link.to} className="mb-4">
+                                        <Link
+                                            to={link.to}
+                                            className="!no-underline visited:!no-underline hover:!no-underline"
+                                            style={{ color: "rgba(255,255,255,0.9)", textDecoration: "none" }}
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    </li>
+                                ))}
                             </ul>
                         </div>
                     </div>
@@ -83,17 +123,19 @@ const Footer = () => {
                         <FaInstagram className="cursor-pointer hover:text-gray-300" />
                     </div>
                 </div>
+
             </div>
 
-            {/* BIG TEXT (STRETCHED EDGE-TO-EDGE) */}
-            <div className="absolute bottom-0 left-0 w-full pointer-events-none overflow-hidden h-[80px] md:h-[140px] lg:h-[180px]">
-                <svg width="100%" height="100%" viewBox="0 0 1000 200" preserveAspectRatio="none">
+            {/* Full-width bottom watermark */}
+            <div className="absolute bottom-0 left-0 w-full pointer-events-none overflow-hidden h-[120px] md:h-[175px] lg:h-[220px]">
+                <svg width="100%" height="100%" viewBox="0 0 1000 240" preserveAspectRatio="none">
                     <text
                         x="50%"
-                        y="80%"
+                        y="30%"
                         textAnchor="middle"
-                        fill="rgba(176, 176, 176, 0.79)"
-                        fontSize="210"
+                        dominantBaseline="middle"
+                        fill="rgba(176, 176, 176, 0.78)"
+                        fontSize="100"
                         fontWeight="600"
                         fontFamily="sans-serif"
                         textLength="1000"

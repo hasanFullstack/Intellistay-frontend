@@ -4,6 +4,9 @@ import { getRecommendations } from "../../api/recommendation.api";
 import { toast } from "react-toastify";
 import { Heart } from "lucide-react";
 import { useFavorites } from "../../hooks/useFavorites";
+import AppLoader from "../../components/ui/AppLoader";
+import EmptyState from "../../components/ui/EmptyState";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 const RecommendedHostels = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -22,7 +25,7 @@ const RecommendedHostels = () => {
         setRecommendations(res.data.recommendations || []);
         setUserProfile(res.data.userProfile || null);
       } catch (err) {
-        const msg = err.response?.data?.message || "Failed to load recommendations";
+        const msg = getErrorMessage(err, "Failed to load recommendations");
         toast.error(msg);
       } finally {
         setLoading(false);
@@ -61,26 +64,17 @@ const RecommendedHostels = () => {
   };
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: "60px 0" }}>
-        <div className="spinner-border" style={{ color: "#6366f1", width: "3rem", height: "3rem" }} role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <h5 style={{ marginTop: "16px", color: "#334155", fontWeight: 600 }}>Analyzing personality compatibility...</h5>
-        <p style={{ color: "#94a3b8", fontSize: "14px" }}>Running weighted multi-factor matching algorithm</p>
-      </div>
-    );
+    return <AppLoader message="Analyzing personality compatibility..." className="py-20" />;
   }
 
   if (recommendations.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "60px 0" }}>
-        <div style={{ fontSize: "64px", marginBottom: "16px" }}>🏠</div>
-        <h4 style={{ color: "#334155", fontWeight: 700 }}>No Recommendations Yet</h4>
-        <p style={{ color: "#94a3b8", maxWidth: "400px", margin: "0 auto" }}>
-          Hostel owners need to complete their environment profiles before we can match you.
-        </p>
-      </div>
+      <EmptyState
+        title="No Recommendations Yet"
+        description="Hostel owners need to complete their environment profiles before we can match you."
+        className="py-20"
+        icon={<div style={{ fontSize: "56px" }}>🏠</div>}
+      />
     );
   }
 
@@ -121,7 +115,7 @@ const RecommendedHostels = () => {
 
       {/* Recommendation Cards */}
       <div className="row g-4">
-        {recommendations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec, idx) => {
+        {recommendations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec, idx) => (
           <div key={rec.hostel._id} className="col-md-6 col-lg-4">
             <div
               style={{
@@ -325,7 +319,7 @@ const RecommendedHostels = () => {
               </div>
             </div>
           </div>
-        })}
+        ))}
       </div>
 
       {/* Pagination */}

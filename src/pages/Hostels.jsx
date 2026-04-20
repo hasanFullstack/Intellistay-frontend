@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useHostels } from "../context/HostelsContext";
 import { Select, Pagination } from "antd";
@@ -6,10 +6,13 @@ import "antd/dist/antd.css";
 import "./Hostels.css";
 import { useAuth } from "../auth/AuthContext";
 import AuthModal from "./AuthModal";
+import { getAllHostels } from "../api/hostel.api";
 import { toast } from "react-toastify";
 import { FaMale, FaFemale } from "react-icons/fa";
 import { Heart } from "lucide-react";
 import { useFavorites } from "../hooks/useFavorites";
+import OwnerCtaBanner from "../../components/OwnerCtaBanner";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 const HOSTELS_CACHE_KEY = "intellistay.hostels.all.v2";
 const HOSTELS_FILTERS_CACHE_KEY = "intellistay.hostels.filters.v2";
@@ -85,16 +88,58 @@ const Hostels = () => {
   const [filterGender, setFilterGender] = useState("all");
   const { user } = useAuth();
   const { isFavorited, toggleFavorite, favoriteHostels, loading: favLoading } = useFavorites();
-  const { hostels: ctxHostels, loading: ctxLoading, refresh: refreshHostels } = useHostels();
+  const { hostels: ctxHostels, refresh: refreshHostels } = useHostels();
   const location = useLocation();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Reduced from 8 for faster initial render
   const [showFilters, setShowFilters] = useState(false);
 
+  const loadHostels = useCallback(async () => {
+    const cachedHostels = readCachedHostels();
+    const params = new URLSearchParams(location.search);
+    const urlFilter = params.get("filter");
+
+    if (cachedHostels?.length) {
+      setHostels(cachedHostels);
+      if (urlFilter === "favorites") {
+        setLoading(true);
+      } else {
+        setFilteredHostels(cachedHostels);
+        setLoading(false);
+      }
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      let freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
+      if (!freshHostels || freshHostels.length === 0) {
+        await refreshHostels();
+        freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
+      }
+      setHostels(freshHostels);
+
+      if (urlFilter === "favorites") {
+        writeCachedHostels(freshHostels);
+        setLoading(true);
+        return;
+      }
+
+      applyFilters(freshHostels, selectedFilter, searchTerm, filterGender);
+      writeCachedHostels(freshHostels);
+    } catch (error) {
+      if (!cachedHostels?.length) {
+        toast.error(getErrorMessage(error, "Failed to load hostels"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [ctxHostels, filterGender, location.search, refreshHostels, searchTerm, selectedFilter]);
+
   useEffect(() => {
     loadHostels();
-  }, []);
+  }, [loadHostels]);
 
   // When URL requests favorites, apply filters on favoriteHostels once hook loads
   useEffect(() => {
@@ -131,51 +176,6 @@ const Hostels = () => {
     }
   }, [user?.role]);
 
-  const loadHostels = async () => {
-    const cachedHostels = readCachedHostels();
-    const params = new URLSearchParams(location.search);
-    const urlFilter = params.get("filter");
-
-    if (cachedHostels?.length) {
-      setHostels(cachedHostels);
-      // For favorites, wait for hook to populate and let the favorites-effect apply filters
-      if (urlFilter === "favorites") {
-        setLoading(true);
-      } else {
-        setFilteredHostels(cachedHostels);
-        setLoading(false);
-      }
-    } else {
-      setLoading(true);
-    }
-
-    try {
-      // Prefer hostels from HostelsContext when available
-      let freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
-      if (!freshHostels || freshHostels.length === 0) {
-        await refreshHostels();
-        freshHostels = Array.isArray(ctxHostels) ? ctxHostels : [];
-      }
-      setHostels(freshHostels);
-
-      // If URL requests favorites, do not override filteredHostels here - the favorites effect will apply filters
-      if (urlFilter === "favorites") {
-        writeCachedHostels(freshHostels);
-        setLoading(true);
-        return;
-      }
-
-      applyFilters(freshHostels, selectedFilter, searchTerm, filterGender);
-      writeCachedHostels(freshHostels);
-    } catch (err) {
-      if (!cachedHostels?.length) {
-        toast.error("Failed to load hostels");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const prefetchAllFilters = async () => {
     // Fetch ALL filters in parallel at once and cache them
     const filterTypes = ["available", "recommended", "popular", "budget"];
@@ -193,7 +193,7 @@ const Hostels = () => {
         writeCachedFilterHostels(filterType, data);
         console.log(`Cached ${filterType} filter: ${data.length} hostels`);
       } catch (err) {
-        console.log(`Prefetch failed for ${filterType}:`, err.message);
+        console.log(`Prefetch failed for ${filterType}:`, getErrorMessage(err, "Unknown error"));
       }
     });
     
@@ -260,7 +260,7 @@ const Hostels = () => {
           }
         } catch (err) {
           // Keep showing cached data if refresh fails
-          console.log(`Failed to refresh ${value} filter:`, err.message);
+          console.log(`Failed to refresh ${value} filter:`, getErrorMessage(err, "Unknown error"));
         }
       })();
     } else {
@@ -272,8 +272,8 @@ const Hostels = () => {
           const data = res.data || [];
           writeCachedFilterHostels(value, data);
           applyFilters(data, value, searchTerm, filterGender);
-        } catch (err) {
-          toast.error("Failed to load filter");
+        } catch (error) {
+          toast.error(getErrorMessage(error, "Failed to load filter"));
           // Fallback to All Hostels on error
           applyFilters(hostels, "All Hostels", searchTerm, filterGender);
         } finally {
@@ -315,13 +315,19 @@ const Hostels = () => {
   return (
     <div className="hostels-page">
       {/* Hero Section */}
-      <div className="relative overflow-hidden hostels-hero " style={{ height: "400px", width: "100vw", marginLeft: "calc(-50vw + 50%)" }}>
-        <div className="absolute h-full w-full inset-0">
-          <div className="absolute inset-0 bg-black/40"></div>
-          <img src="https://www.arcodesk.com/wp-content/uploads/2025/09/Islamic-University-Hostel-Building-Design-in-Narowal.jpeg"
-            alt=""
-            className="object-fit w-full h-full inset-0 transparent" />
-        </div>
+      <div
+        className="relative overflow-hidden hostels-hero"
+        style={{
+          height: "400px",
+          width: "100vw",
+          marginLeft: "calc(-50vw + 50%)",
+          backgroundImage:
+            "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://www.livehome3d.com/assets/img/articles/rooms-in-house/luxurious-living-room@2x.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
         <div className="hero-content relative z-10">
           <h1 className="hero-title">Explore Our Hostels</h1>
           <p className="hero-subtitle">
@@ -815,8 +821,18 @@ const Hostels = () => {
                 }}
               />
             </div>
+
+            <div style={{ marginTop: "40px" }}>
+              <OwnerCtaBanner />
+            </div>
           </div>
         )}
+
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={handleCloseAuthModal}
+          returnToPath="/hostels"
+        />
       </div>
     </div>
   );

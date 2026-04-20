@@ -12,6 +12,7 @@ import OwnerBookingsCentral from "./OwnerBookingsCentral";
 import { ArrowUp, Menu } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 const KpiCard = ({ title, value, badge, icon, trend, trendValue, colorClass = "text-primary" }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between border border-slate-100">
@@ -71,7 +72,7 @@ export default function OwnerDashboard() {
       const bRes = await getOwnerBookings();
       setBookings(bRes?.data || []);
     } catch (err) {
-      toast.error("Failed to load owner dashboard data");
+      toast.error(getErrorMessage(err, "Failed to load owner dashboard data"));
     } finally {
       setLoading(false);
     }

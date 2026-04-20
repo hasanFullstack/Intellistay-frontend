@@ -5,6 +5,8 @@ import { getHostelById } from "../api/hostel.api";
 import { createCheckoutSession } from "../api/booking.api";
 import { loadStripe } from "@stripe/stripe-js";
 import { toast } from "react-toastify";
+import AppLoader from "../components/ui/AppLoader";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 const CheckoutPage = () => {
   const { state } = useLocation();
@@ -32,7 +34,7 @@ const CheckoutPage = () => {
         setRoom(r.data);
         setHostel(h.data);
       } catch (e) {
-        toast.error("Failed to load checkout details");
+        toast.error(getErrorMessage(e, "Failed to load checkout details"));
         navigate(-1);
       } finally {
         setLoading(false);
@@ -74,13 +76,13 @@ const CheckoutPage = () => {
       const { error } = await stripe.redirectToCheckout({ sessionId });
       if (error) throw error;
     } catch (err) {
-      toast.error(err.message || "Payment failed");
+      toast.error(getErrorMessage(err, "Payment failed"));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div className="p-8">Loading checkout...</div>;
+  if (loading) return <AppLoader message="Loading checkout details..." className="py-24" />;
 
   return (
     <div className="max-w-6xl mx-auto my-12 px-6">

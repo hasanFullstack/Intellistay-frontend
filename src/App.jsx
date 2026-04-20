@@ -10,6 +10,7 @@ import Home from "./pages/Home";
 import Contact from "./pages/Contact";
 import Rooms from "./pages/Rooms";
 import Hostels from "./pages/Hostels";
+import BecomeOwner from "./pages/BecomeOwner";
 import HostelRooms from "./pages/HostelRooms";
 import RoomDetail from "./pages/RoomDetail";
 import UserDashboard from "./pages/user/UserDashborad";
@@ -79,6 +80,7 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
           }
         />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/become-owner" element={<BecomeOwner />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/hostels" element={<Hostels />} />
         <Route path="/hostels/:hostelId/rooms" element={<HostelRooms />} />

@@ -6,6 +6,7 @@ import FeaturesSection from "../../components/landing/Features";
 import AccommodationSection from "../../components/landing/AccommodationSection";
 import FeaturedHostels from "../../components/landing/FeaturedHostels";
 import ContactsSection from "../../components/ContactSection";
+import OwnerCtaBanner from "../../components/OwnerCtaBanner";
 
 const Home = () => {
   useEffect(() => {
@@ -20,7 +21,11 @@ const Home = () => {
       <RoomSection />
       <FeaturesSection />
       <AccommodationSection />
+
       <ContactsSection />
+      <div style={{ padding: "16px 0" }}>
+        <OwnerCtaBanner />
+      </div>
     </div>
   );
 };

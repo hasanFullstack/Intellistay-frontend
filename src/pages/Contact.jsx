@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./Contact.css";
 import ContactSection from "../../components/ContactSection";
 import { toast } from "react-toastify";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -29,7 +30,7 @@ const Contact = () => {
       setFormData({ name: "", email: "", message: "" });
       setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
-      toast.error("Failed to send message. Please try again.");
+      toast.error(getErrorMessage(error, "Failed to send message. Please try again."));
     } finally {
       setLoading(false);
     }

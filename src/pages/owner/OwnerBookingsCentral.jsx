@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { acceptBooking, rejectBooking } from "../../api/booking.api";
 import { toast } from "react-toastify";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 const isValidDate = (d) => d instanceof Date && !Number.isNaN(d.getTime());
 
@@ -260,7 +261,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
       setOpenMenuId(null);
       if (onRefresh) await onRefresh();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to accept booking");
+      toast.error(getErrorMessage(err, "Failed to accept booking"));
     } finally {
       setProcessingId(null);
     }
@@ -274,7 +275,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
       setOpenMenuId(null);
       if (onRefresh) await onRefresh();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to reject booking");
+      toast.error(getErrorMessage(err, "Failed to reject booking"));
     } finally {
       setProcessingId(null);
     }

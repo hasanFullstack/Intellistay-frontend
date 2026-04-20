@@ -475,9 +475,8 @@
 }
 
 .rooms-filters-sticky {
-  position: sticky;
-  top: 74px;
-  z-index: 20;
+  position: static;
+  z-index: 1;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   border: 1px solid #dfe8f3;
@@ -757,7 +756,7 @@
   }
 
   .rooms-filters-sticky {
-    top: 66px;
+    position: static;
   }
 
   .filters-grid {
