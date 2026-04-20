@@ -9,17 +9,18 @@ import HostelPortfolio from "./HostelPortfolio";
 import OwnerRoomDashboard from "./OwnerRoomDashboard";
 import OwnerSettingsPage from "./OwnerSettingsPage";
 import OwnerBookingsCentral from "./OwnerBookingsCentral";
-import { ArrowUp, Menu } from "lucide-react";
+import { ArrowUp, BedDouble, Menu } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const KpiCard = ({ title, value, badge, icon, trend, trendValue, colorClass = "text-primary" }) => (
+const KpiCard = ({ title, value, badge, icon, Icon, trend, trendValue, colorClass = "text-primary" }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between border border-slate-100">
     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-4">{title}</p>
     <div className="flex items-end justify-between">
       <span className="text-3xl font-extrabold">{value}</span>
       {badge && <span className="text-primary text-xs font-bold bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
-      {icon && <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span>}
+      {Icon ? <Icon size={20} strokeWidth={2.2} className={colorClass} /> : null}
+      {!Icon && icon ? <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span> : null}
       {trend && (
         <span className={`${trend === 'up' ? 'text-green-600' : 'text-slate-500'} text-xs font-bold flex items-center gap-1`}>
           {trend === 'up' ? <ArrowUp size={14} strokeWidth={2.5} /> : null}
@@ -52,6 +53,8 @@ export default function OwnerDashboard() {
   const [quizHostelId, setQuizHostelId] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chartMetric, setChartMetric] = useState("revenue");
+  const [chartHoverIndex, setChartHoverIndex] = useState(null);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -110,11 +113,105 @@ export default function OwnerDashboard() {
     await loadDashboardData();
   };
 
-  const totalRooms = useMemo(() => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0), [roomsByHostel]);
-  const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
-  const activeBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
-  const monthlyRevenue = useMemo(() => bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + (b.totalPrice || 0), 0), [bookings]);
-  const occupancyRate = totalRooms > 0 ? Math.round((confirmedBookings / totalRooms) * 100) : 0;
+  const parseBookingDate = (booking) => {
+    const raw = booking?.startDate || booking?.checkInDate || booking?.checkIn || booking?.createdAt || null;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const totalRooms = useMemo(
+    () => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0),
+    [roomsByHostel],
+  );
+  const activeBookings = bookings.filter((b) => b.status === "confirmed" || b.status === "pending").length;
+
+  const { totalBeds, availableBeds } = useMemo(() => {
+    let beds = 0;
+    let available = 0;
+    Object.values(roomsByHostel).forEach((rooms) => {
+      (rooms || []).forEach((room) => {
+        beds += Number(room?.totalBeds || 0);
+        available += Number(room?.availableBeds || 0);
+      });
+    });
+    return { totalBeds: beds, availableBeds: available };
+  }, [roomsByHostel]);
+
+  const bookedBeds = Math.max(totalBeds - availableBeds, 0);
+  const occupancyRate = totalBeds > 0 ? Math.round((bookedBeds / totalBeds) * 100) : 0;
+
+  const monthlyRevenue = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    return (bookings || [])
+      .filter((b) => {
+        const status = String(b?.status || "").toLowerCase();
+        return status === "confirmed" || status === "completed";
+      })
+      .filter((b) => {
+        const d = parseBookingDate(b);
+        return d && d.getMonth() === month && d.getFullYear() === year;
+      })
+      .reduce((sum, b) => sum + (Number(b?.totalPrice) || 0), 0);
+  }, [bookings]);
+
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const monthBuckets = Array.from({ length: 7 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (6 - idx), 1);
+      return {
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        label: d.toLocaleDateString("en-US", { month: "short" }),
+        revenue: 0,
+        occupiedUnits: 0,
+      };
+    });
+
+    const bucketMap = Object.fromEntries(monthBuckets.map((b) => [b.key, b]));
+
+    (bookings || []).forEach((b) => {
+      const d = parseBookingDate(b);
+      if (!d) return;
+
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const bucket = bucketMap[key];
+      if (!bucket) return;
+
+      const status = String(b?.status || "").toLowerCase();
+      if (status === "confirmed" || status === "completed") {
+        bucket.revenue += Number(b?.totalPrice) || 0;
+      }
+
+      if (status === "confirmed" || status === "pending" || status === "completed") {
+        const units = Number(b?.bedsBooked ?? b?.quantity ?? b?.beds ?? 1);
+        bucket.occupiedUnits += Number.isFinite(units) && units > 0 ? units : 1;
+      }
+    });
+
+    return monthBuckets.map((b) => {
+      const occupancy = totalBeds > 0 ? Math.min(100, Math.round((b.occupiedUnits / totalBeds) * 100)) : 0;
+      return {
+        ...b,
+        occupancy,
+      };
+    });
+  }, [bookings, totalBeds]);
+
+  const selectedChartIndex = chartHoverIndex ?? Math.max(chartData.length - 1, 0);
+  const selectedChartPoint = chartData[selectedChartIndex] || null;
+  const chartValues = chartData.map((d) => (chartMetric === "revenue" ? d.revenue : d.occupancy));
+  const chartMax = Math.max(...chartValues, 0);
+
+  const chartSummaryValue = selectedChartPoint
+    ? chartMetric === "revenue"
+      ? `Rs ${Math.round(selectedChartPoint.revenue).toLocaleString()}`
+      : `${selectedChartPoint.occupancy}%`
+    : chartMetric === "revenue"
+      ? "Rs 0"
+      : "0%";
 
   const recentBookingRows = bookings.slice(0, 6);
 
@@ -265,7 +362,7 @@ export default function OwnerDashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6 mb-10">
             <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
-            <KpiCard title="Total Rooms" value={totalRooms} icon="king_bed" />
+            <KpiCard title="Total Rooms" value={totalRooms} Icon={BedDouble} colorClass="text-slate-700" />
             <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
             <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
             <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
@@ -281,14 +378,55 @@ export default function OwnerDashboard() {
                     <p className="text-sm text-slate-500">Comparative analysis of gross earnings</p>
                   </div>
                   <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg">
-                    <button className="px-4 py-1 text-xs font-bold bg-white rounded-md shadow-sm">Revenue</button>
-                    <button className="px-4 py-1 text-xs font-bold text-slate-500">Occupancy</button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetric("revenue")}
+                      className={`px-4 py-1 text-xs font-bold rounded-md transition ${chartMetric === "revenue" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      Revenue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetric("occupancy")}
+                      className={`px-4 py-1 text-xs font-bold rounded-md transition ${chartMetric === "occupancy" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      Occupancy
+                    </button>
                   </div>
                 </div>
-                <div className="h-64 flex items-end space-x-4">
-                  {[32, 48, 40, 56, 60, 64, 52].map((height, i) => (
-                    <div key={i} style={{ height: `${height}%` }} className={`flex-1 rounded-t-lg transition-all cursor-pointer ${i === 5 ? 'bg-gradient-to-t from-blue-600 to-purple-600' : 'bg-blue-100 hover:bg-blue-200'}`} />
-                  ))}
+                <div className="mb-4 flex items-baseline justify-between">
+                  <div className="text-2xl font-extrabold text-slate-900">{chartSummaryValue}</div>
+                  <div className="text-xs font-semibold text-slate-500">
+                    {selectedChartPoint ? selectedChartPoint.label : "-"}
+                  </div>
+                </div>
+                <div className="h-64 grid grid-cols-7 items-end gap-3">
+                  {chartData.map((point, i) => {
+                    const value = chartMetric === "revenue" ? point.revenue : point.occupancy;
+                    const ratio = chartMax > 0 ? value / chartMax : 0;
+                    const heightPct = value > 0 ? Math.max(ratio * 100, 10) : 5;
+                    const isActive = i === selectedChartIndex;
+
+                    return (
+                      <button
+                        key={point.key}
+                        type="button"
+                        onMouseEnter={() => setChartHoverIndex(i)}
+                        onFocus={() => setChartHoverIndex(i)}
+                        onMouseLeave={() => setChartHoverIndex(null)}
+                        className="group flex h-full flex-col justify-end"
+                        title={`${point.label}: ${chartMetric === "revenue" ? `Rs ${Math.round(point.revenue).toLocaleString()}` : `${point.occupancy}%`}`}
+                      >
+                        <div
+                          style={{ height: `${heightPct}%` }}
+                          className={`w-full rounded-t-lg transition-all duration-300 ${isActive ? "bg-gradient-to-t from-blue-600 to-indigo-500" : "bg-blue-100 group-hover:bg-blue-200"}`}
+                        />
+                        <span className={`mt-2 text-[10px] font-bold ${isActive ? "text-slate-800" : "text-slate-400"}`}>
+                          {point.label}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
