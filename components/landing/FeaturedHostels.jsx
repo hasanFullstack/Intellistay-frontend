@@ -350,11 +350,12 @@ const FeaturedHostels = () => {
                   className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
                 >
                   {/* Image Container */}
-                  <div className="relative h-48 overflow-hidden">
+                  <div className="relative h-40 overflow-hidden leading-none">
                     <img
                       src={(hostel?.images && hostel.images.length > 0) ? hostel.images[0] : "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=800"}
                       alt={hostel?.name || "Hostel"}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-500"
+                      style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
                     />
 
                     {/* Badges */}
@@ -390,8 +391,8 @@ const FeaturedHostels = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="bg-[#235784] flex items-center text-white text-xs px-2 py-2 ">
-                    <h3 className="text-lg mb-0 font-semibold text-gray-800 line-clamp-1 capitalize">
+                  <div className="bg-[#235784] flex items-center text-white text-xs px-2 py-2">
+                    <h3 className="text-lg mb-0 font-semibold line-clamp-1 capitalize text-white">
                       {hostel?.name || "Untitled Hostel"}
                     </h3>
                   </div>

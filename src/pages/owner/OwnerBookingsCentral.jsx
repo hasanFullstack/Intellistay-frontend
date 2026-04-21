@@ -161,6 +161,9 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
           ? `${b?.roomId?.roomType || "Room"} - ${b.roomId.roomLabel}`
           : b?.roomId?.roomType || "Room";
 
+      const pricePerBed = Number(b?.roomId?.pricePerBed || 0);
+      const totalPrice = Number(b?.totalPrice || 0);
+
       return {
         raw: b,
         actionKey: String(b?._id || bookingId || idx),
@@ -172,10 +175,11 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
         hostelId: b?.hostelId?._id || b?.hostelId,
         room: roomName,
         roomId: b?.roomId?._id || b?.roomId,
-        stay: `${formatDate(start)} - ${formatDate(end)}`,
+        stay: start ? formatDate(start) : "-",
         nights: `${nights} Night${nights > 1 ? "s" : ""}`,
         status: b?.status || "pending",
-        amount: Number(b?.totalPrice || 0),
+        pricePerBed,
+        amount: totalPrice > 0 ? totalPrice : pricePerBed,
         paymentStatus: getPaymentLabel(b),
         viewTab: getTabForBooking(b),
       };
@@ -377,9 +381,9 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
               <tr className="text-[#424754]">
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest">Guest & ID</th>
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest">Hostel & Room</th>
-                <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest">Stay Period</th>
+                <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest">Check-in Date</th>
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
-                <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-right">Total Amount</th>
+                <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-right">Room Price / Bed</th>
                 <th className="pb-4 px-4"></th>
               </tr>
             </thead>
@@ -412,7 +416,6 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                   </td>
                   <td className="py-6 px-4">
                     <div className="text-sm font-medium text-[#131b2e]">{booking.stay}</div>
-                    <p className="text-xs text-[#424754] italic">{booking.nights}</p>
                   </td>
                   <td className="py-6 px-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase ${getStatusStyles(booking.status)}`}>
@@ -420,7 +423,10 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                     </span>
                   </td>
                   <td className="py-6 px-4 text-right">
-                    <p className="font-bold text-[#131b2e]">{fmtCurrency(booking.amount)}</p>
+                    <p className="font-bold text-[#131b2e]">{fmtCurrency(booking.pricePerBed > 0 ? booking.pricePerBed : booking.amount)}</p>
+                    {booking.amount > 0 && booking.pricePerBed > 0 && booking.amount !== booking.pricePerBed && (
+                      <p className="text-[10px] text-[#424754]">Total: {fmtCurrency(booking.amount)}</p>
+                    )}
                     <p className="text-[10px] text-[#424754] font-bold uppercase">{booking.paymentStatus}</p>
                   </td>
                   <td className="py-6 px-4 text-right relative">

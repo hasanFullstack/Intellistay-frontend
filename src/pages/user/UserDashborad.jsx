@@ -82,7 +82,7 @@ const UserDashboard = () => {
   const formatPrice = (p) => {
     if (p === undefined || p === null) return "—";
     const n = Number(p);
-    if (Number.isFinite(n)) return `₹${n.toLocaleString()}`;
+    if (Number.isFinite(n)) return `Rs ${n.toLocaleString()}`;
     return String(p);
   };
 
@@ -183,7 +183,7 @@ const UserDashboard = () => {
 
               <div className="bg-yellow-100 p-6 rounded-xl">
                 <p className="text-2xl font-bold text-amber-700">
-                  ₹{totalSpent.toLocaleString()}
+                  Rs {totalSpent.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Total Spent</p>
               </div>
@@ -287,7 +287,7 @@ const UserDashboard = () => {
                                     {getStatusBadge(booking.status)}
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-4 mb-4">
+                                  <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Check-in
@@ -298,18 +298,10 @@ const UserDashboard = () => {
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
-                                        Check-out
-                                      </p>
-                                      <p className="font-bold text-gray-900">
-                                        {formatDate(booking.endDate)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Price/Night
                                       </p>
                                       <p className="font-bold text-[#2b5a84]">
-                                        ₹{booking.roomId?.pricePerBed?.toLocaleString() || "—"}
+                                        Rs {booking.roomId?.pricePerBed?.toLocaleString() || "—"}
                                       </p>
                                     </div>
                                   </div>
@@ -375,7 +367,7 @@ const UserDashboard = () => {
                                     {getStatusBadge(booking.status)}
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Check-in
@@ -386,18 +378,10 @@ const UserDashboard = () => {
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
-                                        Check-out
-                                      </p>
-                                      <p className="font-bold text-gray-900">
-                                        {formatDate(booking.endDate)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Total
                                       </p>
                                       <p className="font-bold text-[#2b5a84]">
-                                        ₹{booking.totalPrice?.toLocaleString() || "—"}
+                                        Rs {booking.totalPrice?.toLocaleString() || "—"}
                                       </p>
                                     </div>
                                   </div>
@@ -552,14 +536,6 @@ const UserDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
                   <p className="text-xs text-gray-500 mb-1 font-semibold">
-                    Check-out
-                  </p>
-                  <p className="font-bold text-gray-900">
-                    {formatDate(selectedBooking.endDate)}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1 font-semibold">
                     Room Type
                   </p>
                   <p className="font-bold text-gray-900">
@@ -587,7 +563,7 @@ const UserDashboard = () => {
                     Price/Bed
                   </p>
                   <p className="font-bold text-gray-900">
-                    ₹{selectedBooking.roomId?.pricePerBed?.toLocaleString() || "—"}
+                    Rs {selectedBooking.roomId?.pricePerBed?.toLocaleString() || "—"}
                   </p>
                 </div>
               </div>
@@ -595,7 +571,7 @@ const UserDashboard = () => {
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl flex justify-between items-center">
                 <span className="font-bold text-gray-700">Total Amount</span>
                 <span className="text-2xl font-bold text-[#2b5a84]">
-                  ₹{selectedBooking.totalPrice?.toLocaleString() || "—"}
+                  Rs {selectedBooking.totalPrice?.toLocaleString() || "—"}
                 </span>
               </div>
 

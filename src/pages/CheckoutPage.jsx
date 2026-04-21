@@ -56,7 +56,7 @@ const CheckoutPage = () => {
       const sessionRes = await createCheckoutSession({
         roomId,
         quantity: bedsBooked || 1,
-        currency: "INR",
+        currency: "PKR",
         startDate: startDate || new Date().toISOString().split("T")[0],
         bedsBooked: bedsBooked || 1,
         successUrl: `${appOrigin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,

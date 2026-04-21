@@ -10,6 +10,7 @@ import OwnerRoomDashboard from "./OwnerRoomDashboard";
 import OwnerSettingsPage from "./OwnerSettingsPage";
 import OwnerBookingsCentral from "./OwnerBookingsCentral";
 import { ArrowUp, Menu } from "lucide-react";
+import OwnerPerformanceChart from "../../components/charts/OwnerPerformanceChart";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getErrorMessage } from "../../utils/getErrorMessage";
@@ -53,6 +54,7 @@ export default function OwnerDashboard() {
   const [quizHostelId, setQuizHostelId] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chartMetric, setChartMetric] = useState("revenue");
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -115,6 +117,88 @@ export default function OwnerDashboard() {
   const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
   const activeBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
   const monthlyRevenue = useMemo(() => bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + (b.totalPrice || 0), 0), [bookings]);
+  const roomPrices = useMemo(
+    () =>
+      Object.values(roomsByHostel)
+        .flatMap((rooms) => rooms || [])
+        .map((room) => Number(room?.pricePerBed || 0))
+        .filter((price) => Number.isFinite(price) && price > 0),
+    [roomsByHostel]
+  );
+  const avgNightPrice = useMemo(() => {
+    if (!roomPrices.length) return 0;
+    const total = roomPrices.reduce((sum, price) => sum + price, 0);
+    return Math.round(total / roomPrices.length);
+  }, [roomPrices]);
+  const totalBeds = useMemo(
+    () =>
+      Object.values(roomsByHostel)
+        .flatMap((rooms) => rooms || [])
+        .reduce((sum, room) => sum + Math.max(0, Number(room?.totalBeds || 0)), 0),
+    [roomsByHostel]
+  );
+
+  const chartSeries = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 7 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (6 - idx), 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-US", { month: "short" });
+      return { key, label };
+    });
+
+    const monthKeys = new Set(months.map((m) => m.key));
+    const revenueByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
+    const occupiedBedsByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
+
+    const getBookingDate = (b) => {
+      const raw =
+        b?.startDate ||
+        b?.checkInDate ||
+        b?.arrivalDate ||
+        b?.fromDate ||
+        b?.checkIn ||
+        b?.createdAt;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    bookings.forEach((b) => {
+      const d = getBookingDate(b);
+      if (!d) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthKeys.has(key)) return;
+
+      const status = String(b?.status || "").toLowerCase();
+      const total = Number(b?.totalPrice || 0);
+      const beds = Number(b?.bedsBooked ?? b?.beds ?? b?.numberOfGuests ?? b?.guests ?? 1);
+
+      if (["confirmed", "completed"].includes(status) && Number.isFinite(total) && total > 0) {
+        revenueByMonth[key] += total;
+      }
+
+      if (["confirmed", "pending"].includes(status)) {
+        occupiedBedsByMonth[key] += Number.isFinite(beds) && beds > 0 ? beds : 1;
+      }
+    });
+
+    const revenueValues = months.map((m) => Math.round(revenueByMonth[m.key] || 0));
+    const occupancyValues = months.map((m) => {
+      if (totalBeds <= 0) return 0;
+      const pct = Math.round(((occupiedBedsByMonth[m.key] || 0) / totalBeds) * 100);
+      return Math.max(0, Math.min(100, pct));
+    });
+
+    return {
+      months,
+      revenueValues,
+      occupancyValues,
+    };
+  }, [bookings, totalBeds]);
+
+  const activeChartValues = chartMetric === "occupancy" ? chartSeries.occupancyValues : chartSeries.revenueValues;
+  const maxChartValue = Math.max(...activeChartValues, 1);
   const occupancyRate = totalRooms > 0 ? Math.round((confirmedBookings / totalRooms) * 100) : 0;
 
   const recentBookingRows = bookings.slice(0, 6);
@@ -266,11 +350,17 @@ export default function OwnerDashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6 mb-10">
             <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
-            <KpiCard title="Total Rooms" value={totalRooms} icon="king_bed" />
+            <KpiCard title="Total Rooms" value={totalRooms} trend="stable" trendValue="Inventory" />
             <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
             <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
             <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
-            <KpiCard title="Avg Night Price" value="$65.5" trend="up" trendValue="$4.0" colorClass="text-purple-600" />
+            <KpiCard
+              title="Avg Night Price"
+              value={`Rs ${avgNightPrice.toLocaleString()}`}
+              trend="stable"
+              trendValue={`${roomPrices.length} priced rooms`}
+              colorClass="text-purple-600"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
@@ -282,14 +372,30 @@ export default function OwnerDashboard() {
                     <p className="text-sm text-slate-500">Comparative analysis of gross earnings</p>
                   </div>
                   <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg">
-                    <button className="px-4 py-1 text-xs font-bold bg-white rounded-md shadow-sm">Revenue</button>
-                    <button className="px-4 py-1 text-xs font-bold text-slate-500">Occupancy</button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetric("revenue")}
+                      className={`px-4 py-1 text-xs font-bold rounded-md ${chartMetric === "revenue" ? "bg-white shadow-sm text-[#131b2e]" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      Revenue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChartMetric("occupancy")}
+                      className={`px-4 py-1 text-xs font-bold rounded-md ${chartMetric === "occupancy" ? "bg-white shadow-sm text-[#131b2e]" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      Occupancy
+                    </button>
                   </div>
                 </div>
-                <div className="h-64 flex items-end space-x-4">
-                  {[32, 48, 40, 56, 60, 64, 52].map((height, i) => (
-                    <div key={i} style={{ height: `${height}%` }} className={`flex-1 rounded-t-lg transition-all cursor-pointer ${i === 5 ? 'bg-gradient-to-t from-blue-600 to-purple-600' : 'bg-blue-100 hover:bg-blue-200'}`} />
-                  ))}
+                <div>
+                  {/* Chart.js component - interactive and responsive */}
+                  <OwnerPerformanceChart
+                    months={chartSeries.months}
+                    revenueValues={chartSeries.revenueValues}
+                    occupancyValues={chartSeries.occupancyValues}
+                    metric={chartMetric}
+                  />
                 </div>
               </div>
 

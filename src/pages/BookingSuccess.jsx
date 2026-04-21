@@ -490,7 +490,7 @@ const BookingSuccess = () => {
                         color: "#191c1e",
                       }}
                     >
-                      ₹{booking.totalPrice?.toLocaleString() || "—"}
+                      Rs {booking.totalPrice?.toLocaleString() || "—"}
                     </p>
                   </motion.div>
                 </div>
