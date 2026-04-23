@@ -14,14 +14,16 @@ import OwnerPerformanceChart from "../../components/charts/OwnerPerformanceChart
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getErrorMessage } from "../../utils/getErrorMessage";
+import { getOwnerKpis } from "../../api/owner.api";
 
-const KpiCard = ({ title, value, badge, icon, trend, trendValue, colorClass = "text-primary" }) => (
+const KpiCard = ({ title, value, badge, icon, Icon, trend, trendValue, colorClass = "text-primary" }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between border border-slate-100">
     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-4">{title}</p>
     <div className="flex items-end justify-between">
       <span className="text-3xl font-extrabold">{value}</span>
       {badge && <span className="text-primary text-xs font-bold bg-blue-50 px-2 py-1 rounded-md">{badge}</span>}
-      {icon && <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span>}
+      {Icon ? <Icon size={20} strokeWidth={2.2} className={colorClass} /> : null}
+      {!Icon && icon ? <span className={`material-symbols-outlined ${colorClass}`}>{icon}</span> : null}
       {trend && (
         <span className={`${trend === 'up' ? 'text-green-600' : 'text-slate-500'} text-xs font-bold flex items-center gap-1`}>
           {trend === 'up' ? <ArrowUp size={14} strokeWidth={2.5} /> : null}
@@ -55,6 +57,7 @@ export default function OwnerDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chartMetric, setChartMetric] = useState("revenue");
+  const [kpis, setKpis] = useState([]);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -73,6 +76,12 @@ export default function OwnerDashboard() {
 
       const bRes = await getOwnerBookings();
       setBookings(bRes?.data || []);
+      try {
+        const kRes = await getOwnerKpis();
+        setKpis(kRes?.data?.kpis || []);
+      } catch (err) {
+        // don't block dashboard load for KPI failure
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to load owner dashboard data"));
     } finally {
@@ -349,18 +358,34 @@ export default function OwnerDashboard() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6 mb-10">
-            <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
-            <KpiCard title="Total Rooms" value={totalRooms} trend="stable" trendValue="Inventory" />
-            <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
-            <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
-            <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
-            <KpiCard
-              title="Avg Night Price"
-              value={`Rs ${avgNightPrice.toLocaleString()}`}
-              trend="stable"
-              trendValue={`${roomPrices.length} priced rooms`}
-              colorClass="text-purple-600"
-            />
+            {kpis && kpis.length > 0 ? (
+              kpis.map((k) => (
+                <KpiCard
+                  key={k.key}
+                  title={k.title}
+                  value={k.value}
+                  badge={k.badge}
+                  trend={k.trend}
+                  trendValue={k.trendValue}
+                  colorClass={k.colorClass}
+                />
+              ))
+            ) : (
+              <>
+                <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
+                <KpiCard title="Total Rooms" value={totalRooms} trend="stable" trendValue="Inventory" />
+                <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
+                <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
+                <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
+                <KpiCard
+                  title="Avg Monthly Price"
+                  value={`Rs ${avgNightPrice.toLocaleString()}`}
+                  trend="stable"
+                  trendValue={`${roomPrices.length} priced rooms`}
+                  colorClass="text-purple-600"
+                />
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">

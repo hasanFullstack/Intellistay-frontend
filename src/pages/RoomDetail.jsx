@@ -26,7 +26,9 @@ import {
   CheckCircle2,
   VolumeX,
   CigaretteOff,
-  ArrowLeft
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const getAmenityIcon = (amenityStr) => {
@@ -74,6 +76,7 @@ const RoomDetail = () => {
   const [showSphereViewer, setShowSphereViewer] = useState(false);
   const [sphereIndex, setSphereIndex] = useState(0);
   const [sphereImages, setSphereImages] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [occupants, setOccupants] = useState([]);
   const [occupantLoading, setOccupantLoading] = useState(false);
   const [occupantError, setOccupantError] = useState(false);
@@ -363,99 +366,10 @@ const RoomDetail = () => {
       </div>
 
       <main className="pt-8 pb-16 px-6 max-w-7xl mx-auto">
-        {/* Hero Gallery: Bento Style */}
-        <section className="grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 h-125 mb-12">
-          {/* Main Large Image */}
-          <div className="md:col-span-2 md:row-span-2 overflow-hidden rounded-xl bg-white relative">
-            <img
-              onClick={() => {
-                const imgs = room?.images?.length
-                  ? room.images
-                  : hostel?.images || [];
-                setSphereImages(imgs);
-                setSphereIndex(0);
-                setShowSphereViewer(true);
-              }}
-              src={
-                room.images?.[0] ||
-                hostel.images?.[0] ||
-                "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=1200"
-              }
-              alt="Room View 1"
-              className="w-full h-full object-cover cursor-pointer"
-            />
-            <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2 shadow-lg">
-              <CheckCircle2 size={16} /> Verified
-            </div>
-          </div>
 
-          {/* Image 2 */}
-          <div className="md:col-span-1 overflow-hidden rounded-xl bg-white">
-            <img
-              onClick={() => {
-                const imgs = room?.images?.length
-                  ? room.images
-                  : hostel?.images || [];
-                setSphereImages(imgs);
-                setSphereIndex(1);
-                setShowSphereViewer(true);
-              }}
-              src={
-                room.images?.[1] ||
-                hostel.images?.[1] ||
-                "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=800"
-              }
-              alt="Room View 2"
-              className="w-full h-full object-cover cursor-pointer"
-            />
-          </div>
-
-          {/* Image 3 */}
-          <div className="md:col-span-1 overflow-hidden rounded-xl bg-white">
-            <img
-              onClick={() => {
-                const imgs = room?.images?.length
-                  ? room.images
-                  : hostel?.images || [];
-                setSphereImages(imgs);
-                setSphereIndex(2);
-                setShowSphereViewer(true);
-              }}
-              src={
-                room.images?.[2] ||
-                hostel.images?.[2] ||
-                "https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=800"
-              }
-              alt="Room View 3"
-              className="w-full h-full object-cover cursor-pointer"
-            />
-          </div>
-
-          {/* Image 4 */}
-          <div className="md:col-span-2 overflow-hidden rounded-xl bg-white">
-            <img
-              onClick={() => {
-                const imgs = room?.images?.length
-                  ? room.images
-                  : hostel?.images || [];
-                setSphereImages(imgs);
-                setSphereIndex(3);
-                setShowSphereViewer(true);
-              }}
-              src={
-                room.images?.[3] ||
-                hostel.images?.[3] ||
-                "https://images.pexels.com/photos/275484/pexels-photo-275484.jpeg?auto=compress&cs=tinysrgb&w=800"
-              }
-              alt="Room View 4"
-              className="w-full h-full object-cover cursor-pointer"
-            />
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Content Column */}
-          <div className="space-y-12">
+          <div className="space-y-12 lg:col-span-7">
             {/* Title & Meta */}
             <section>
               <div className="flex items-center gap-3 mb-4">
@@ -545,8 +459,8 @@ const RoomDetail = () => {
                 </div>
               )}
             </section>
-            {/* Roommate Compatibility */}
-            {!isSingleOccupancyRoom && (
+            {/* Roommate Compatibility (students only) */}
+            {user?.role === "student" && !isSingleOccupancyRoom && (
               <section className="mt-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-blue-900 font-headline">
@@ -637,9 +551,73 @@ const RoomDetail = () => {
           </div>
 
           {/* Booking Sidebar */}
-          <aside className="relative">
-            <div className="sticky top-28 bg-white/85 backdrop-blur-xl border border-white/20 p-8 rounded-xl shadow-2xl shadow-blue-900/10 z-10 w-full max-w-sm mx-auto">
-              <div className="flex justify-between items-end mb-8">
+          <aside className="relative lg:col-span-5">
+            {/* Right column: gallery + booking card */}
+            <div className="space-y-6">
+              {/* Gallery (right column) */}
+              <div className="overflow-hidden flex flex-col gap-4">
+                <div className="w-full rounded-xl overflow-hidden">
+                  {(() => {
+                    const imgs = room?.images?.length ? room.images : hostel?.images || [];
+                    const visible = imgs.length > 0 ? imgs : ["https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=1200"];
+                    const idx = selectedImage % visible.length;
+                    return (
+                      <div className="relative">
+                        <img
+                          onClick={() => { setSphereImages(visible); setSphereIndex(idx); setShowSphereViewer(true); }}
+                          src={visible[idx]}
+                          alt={`Room View ${idx + 1}`}
+                          className="w-full h-72 object-cover cursor-pointer rounded-t-xl"
+                        />
+
+                        {visible.length > 1 && (
+                          <>
+                            <button
+                              onClick={() => setSelectedImage((s) => (s === 0 ? visible.length - 1 : s - 1))}
+                              className="absolute left-4 top-1/2 -translate-y-1/2 bg-gray-50/50 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-100"
+                              aria-label="Previous image"
+                              style={{ borderRadius: "100%" }}
+                            >
+                              <ChevronLeft className="w-5 h-5 text-slate-800" />
+                            </button>
+
+                            <button
+                              onClick={() => setSelectedImage((s) => (s === visible.length - 1 ? 0 : s + 1))}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 bg-gray-50/50 hover:bg-white p-2 rounded-full shadow-lg transition-all duration-100"
+                              aria-label="Next image"
+                              style={{ borderRadius: "100%" }}
+                            >
+                              <ChevronRight className="w-5 h-5 text-slate-800" />
+                            </button>
+
+                            <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                              {idx + 1} / {visible.length}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Thumbnails */}
+                {(() => {
+                  const imgs = room?.images?.length ? room.images : hostel?.images || [];
+                  if (!imgs || imgs.length <= 1) return null;
+                  return (
+                    <div className="flex gap-2 overflow-x-auto">
+                      {imgs.map((src, i) => (
+                        <button key={i} onClick={() => setSelectedImage(i)} className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${selectedImage === i ? 'border-blue-500' : 'border-gray-200'}`}>
+                          <img src={src} alt={`thumb-${i}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="sticky top-28 bg-white/85 backdrop-blur-xl border border-white/20 p-8 rounded-xl shadow-2xl shadow-blue-900/10 z-10 w-full ">
+              <div className="flex justify-between items-end mb-2">
                 <div>
                   <span className="text-4xl font-black text-blue-900 tracking-tighter">
                     Rs {room.pricePerBed}
@@ -648,12 +626,12 @@ const RoomDetail = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 mb-8">
+              <div className="mb-8">
                 <div className="p-4 bg-slate-50 rounded-lg">
                   <p className="text-xs font-bold text-slate-500 mb-1 tracking-widest uppercase">
                       ROOM TYPE
                   </p>
-                  <p className="font-semibold text-[var(--color-primary)]  capitalize">
+                  <p className="font-semibold text-[var(--color-primary)]  capitalize mb-0">
                     {room.roomType} {room.roomLabel ? <span className="text-sm text-gray-600 font-medium">· {room.roomLabel}</span> : null}
                   </p>
                 </div>
@@ -696,6 +674,7 @@ const RoomDetail = () => {
                 </div>
               </div>
             </div>
+            </div>
           </aside>
         </div>
 
@@ -703,9 +682,7 @@ const RoomDetail = () => {
         {relatedRooms.length > 0 && (
           <section className="mt-24">
             <div className="flex items-baseline justify-between mb-8">
-              <h2 className="text-3xl font-extrabold text-blue-900">
-                Related Rooms
-              </h2>
+              <h2 className="text-3xl font-extrabold text-blue-900">Related Rooms</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -734,19 +711,13 @@ const RoomDetail = () => {
                     <p className="text-xs font-bold text-slate-500 mb-2 tracking-widest uppercase">
                       {hostel?.gender || "Male"} SHARED
                     </p>
-                    <h3 className="text-xl font-bold text-blue-900 mb-4 leading-tight">
-                      {relRoom.roomType}
-                    </h3>
+                    <h3 className="text-xl font-bold text-blue-900 mb-4 leading-tight">{relRoom.roomType}</h3>
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-[var(--color-primary)]">
                         Rs {relRoom.pricePerBed}
-                        <span className="text-sm font-normal text-slate-400">
-                          /month
-                        </span>
+                        <span className="text-sm font-normal text-slate-400">/month</span>
                       </span>
-                      <button className="px-4 py-2 bg-slate-100 text-[var(--color-primary)]  text-sm font-bold rounded-lg group-hover:bg-[var(--color-primary)] group-hover:text-white transition-colors">
-                        View Details
-                      </button>
+                      <button className="px-4 py-2 bg-slate-100 text-[var(--color-primary)] text-sm font-bold rounded-lg transition-colors">View Details</button>
                     </div>
                   </div>
                 </div>
@@ -936,13 +907,13 @@ const RoomDetail = () => {
       {/* PhotoSphere viewer modal showing all images as selectable 360 sources */}
       {showSphereViewer && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center p-4"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 overflow-y-auto"
           style={{ backgroundColor: "rgba(2,6,23,0.85)" }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowSphereViewer(false);
           }}
         >
-          <div className="w-full max-w-5xl bg-black rounded-md overflow-hidden relative">
+          <div className="w-full max-w-5xl bg-black rounded-md overflow-hidden relative max-h-[90vh] mx-auto">
             <button
               onClick={() => setShowSphereViewer(false)}
               className="absolute top-3 right-3 z-50 bg-white/90 text-slate-800 px-3 py-1 rounded-full font-semibold"
@@ -950,15 +921,22 @@ const RoomDetail = () => {
               Close
             </button>
 
-            <div className="w-full h-[72vh] bg-black">
+            <div className="w-full bg-black" style={{ height: '72vh', maxHeight: '72vh' }}>
               <ReactPhotoSphereViewer
                 src={
                   sphereImages && sphereImages[sphereIndex]
                     ? sphereImages[sphereIndex]
                     : ""
                 }
-                height="72vh"
+                height="100%"
                 width="100%"
+                options={{
+                  // Increase field of view so image is less zoomed in by default
+                  defaultFov: 100,
+                  minFov: 40,
+                  maxFov: 140,
+                  navbar: false,
+                }}
               />
             </div>
 
@@ -970,9 +948,7 @@ const RoomDetail = () => {
                   alt={`sphere-thumb-${idx}`}
                   onClick={() => setSphereIndex(idx)}
                   className={`w-20 h-12 object-cover rounded-md cursor-pointer border-2 ${
-                    idx === sphereIndex
-                      ? "border-blue-400"
-                      : "border-transparent"
+                    idx === sphereIndex ? "border-blue-400" : "border-transparent"
                   }`}
                 />
               ))}

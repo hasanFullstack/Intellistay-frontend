@@ -153,8 +153,10 @@ export default function OwnerRoomDashboard({
 
     hostels.forEach((hostel) => {
       const rooms = roomsByHostel[hostel._id] || [];
+      let roomIndex = 0;
 
       rooms.forEach((room) => {
+        roomIndex += 1;
         const currentPrice = Math.round(Number(room?.pricePerBed || 0));
         const totalBeds = Math.max(0, Number(room?.totalBeds || 0));
         const bookedBeds = Math.max(0, bookedBedsByRoom[String(room?._id)] || 0);
@@ -170,6 +172,7 @@ export default function OwnerRoomDashboard({
           : `${room.roomType || "Room"} - ${String(room?._id || "").slice(-4)}`;
 
         rows.push({
+          number: room?.number ?? roomIndex,
           id: room._id,
           hostelId: hostel._id,
           hostelName: hostel.name || "Hostel",
@@ -319,6 +322,7 @@ export default function OwnerRoomDashboard({
   const exportList = () => {
     const rows = filteredRooms.map((room) => [
       room.id,
+      room.number ?? "",
       room.hostelName,
       room.name,
       room.type,
@@ -329,7 +333,7 @@ export default function OwnerRoomDashboard({
     ]);
 
     const csv = [
-      ["Room ID", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested"],
+      ["Room ID", "Room No", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested"],
       ...rows,
     ]
       .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
@@ -472,6 +476,13 @@ export default function OwnerRoomDashboard({
       </div>
 
       <div className="bg-white rounded-2xl p-2 shadow-sm border border-[#e2e7ff] overflow-x-auto">
+        <div className="px-6 py-3 flex items-center justify-between text-xs text-[#424754] font-medium">
+          <div>
+            Showing <span className="font-bold text-[#131b2e]">{filteredRooms.length}</span> rooms
+          </div>
+          <div className="text-right text-xs text-[#424754]">Grouped by hostel</div>
+        </div>
+
         <table className="w-full text-left border-collapse min-w-[880px]">
           <thead>
             <tr className="text-[#424754]">
@@ -483,98 +494,126 @@ export default function OwnerRoomDashboard({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {pagedRooms.map((room) => {
-              const pct = room.price > 0 ? Math.round(((room.suggested - room.price) / room.price) * 100) : 0;
-              const lift = `${pct > 0 ? "+" : ""}${pct}%`;
+            {hostels.map((hostel) => {
+              const hostelRooms = filteredRooms.filter((r) => r.hostelId === hostel._id);
+              if (!hostelRooms.length) return null;
 
               return (
-                <tr key={room.id} className="hover:bg-[#f2f3ff] transition-colors group">
-                  <td className="px-6 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 bg-[#e2e7ff]">
-                        <img alt={room.name} src={room.img} className="w-full h-full object-cover" />
+                <React.Fragment key={hostel._id}>
+                  <tr className="bg-[#f3f7ff]">
+                    <td colSpan={5} className="px-6 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#e2e7ff]">
+                            <img
+                              alt={hostel.name}
+                              src={hostel.images?.[0] || hostel.photos?.[0] || hostel?.image || "https://images.unsplash.com/photo-1503437313881-503a91226422?auto=format&fit=crop&w=300&q=60"}
+                              className="w-full !h-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <div className="text-lg font-extrabold text-[#131b2e]">{hostel.name || "Hostel"}</div>
+                            <div className="text-xs text-[#424754]">{hostel.city || hostel.location || ""}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm text-[#424754]">{hostelRooms.length} rooms</div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/hostel/${hostel._id}`)}
+                            className="px-3 py-1 rounded-md bg-white border text-sm font-semibold hover:bg-[#f6f8ff]"
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedHostelId(hostel._id);
+                              setShowAddRoomModal(true);
+                            }}
+                            className="px-3 py-1 rounded-md bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white text-sm font-semibold"
+                          >
+                            Add Room
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/room/${room.id}/${room.hostelId}`)}
-                          className="font-bold text-[#131b2e] hover:text-[#0058be]"
-                        >
-                          {room.name}
-                        </button>
-                        <div className="text-xs text-[#424754]">{room.type} · {room.hostelName}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <span className="bg-[#e2e7ff] px-3 py-1 rounded-full text-xs font-bold text-[#0058be]">
-                      {room.capacity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-6">
-                    <div className="font-bold">{formatIntegerPrice(room.price)}</div>
-                    <div className="text-[10px] text-[#424754]">Current saved price</div>
-                  </td>
-                  <td className="px-6 py-6">
-                    <span className={`flex items-center gap-1.5 text-xs font-bold ${statusClass[room.status] || "text-[#424754]"}`}>
-                      <span className={`w-2 h-2 rounded-full ${statusDotClass[room.status] || "bg-[#424754]"}`}></span>
-                      {room.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-6">
-                      <div className={`space-y-2`}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#783eb2]">{formatIntegerPrice(room.suggested)}</span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
-                          {lift}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${room.pricingSource === "ai" ? "bg-[#efe8ff] text-[#6b38d4]" : "bg-[#fff1f1] text-[#b54747]"}`}>
-                          {room.pricingSource === "ai" ? "Live AI" : "Fallback"}
-                        </span>
-                        <span className="text-[10px] text-[#424754]">
-                          {room.pricingSource === "ai" ? "Recommended by AI" : "Using saved room price"}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+
+                  {hostelRooms.map((room) => {
+                    const pct = room.price > 0 ? Math.round(((room.suggested - room.price) / room.price) * 100) : 0;
+                    const lift = `${pct > 0 ? "+" : ""}${pct}%`;
+
+                    return (
+                      <tr key={room.id} className="hover:bg-[#f2f3ff] transition-colors group">
+                        <td className="px-6 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 bg-[#e2e7ff]">
+                              <img alt={room.name} src={room.img} className="w-full !h-full object-cover" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#eef2ff] text-sm font-bold text-[#0058be]">{room.number ?? ""}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/room/${room.id}/${room.hostelId}`)}
+                                  className="font-bold text-[#131b2e] hover:text-[#0058be]"
+                                >
+                                  {room.name}
+                                </button>
+                              </div>
+                              <div className="text-xs text-[#424754]">{room.type} · {room.hostelName}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-6 text-center">
+                          <span className="bg-[#e2e7ff] px-3 py-1 rounded-full text-xs font-bold text-[#0058be]">
+                            {room.capacity}
+                          </span>
+                        </td>
+                        <td className="px-6 py-6">
+                          <div className="font-bold">{formatIntegerPrice(room.price)}</div>
+                          <div className="text-[10px] text-[#424754]">Current saved price</div>
+                        </td>
+                        <td className="px-6 py-6">
+                          <span className={`flex items-center gap-1.5 text-xs font-bold ${statusClass[room.status] || "text-[#424754]"}`}>
+                            <span className={`w-2 h-2 rounded-full ${statusDotClass[room.status] || "bg-[#424754]"}`}></span>
+                            {room.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-6">
+                          <div className={`space-y-2`}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#783eb2]">{formatIntegerPrice(room.suggested)}</span>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
+                                {lift}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${room.pricingSource === "ai" ? "bg-[#efe8ff] text-[#6b38d4]" : "bg-[#fff1f1] text-[#b54747]"}`}>
+                                {room.pricingSource === "ai" ? "Live AI" : "Fallback"}
+                              </span>
+                              <span className="text-[10px] text-[#424754]">
+                                {room.pricingSource === "ai" ? "Recommended by AI" : "Using saved room price"}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
 
-            {!loading && pagedRooms.length === 0 && (
+            {!loading && filteredRooms.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-10 text-center text-[#424754]">No rooms found for selected filters.</td>
               </tr>
             )}
           </tbody>
         </table>
-
-        <div className="p-6 flex justify-between items-center bg-[#f2f3ff] rounded-b-2xl mt-2">
-          <div className="text-xs text-[#424754] font-medium">
-            Showing <span className="font-bold text-[#131b2e]">{filteredRooms.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0}-{Math.min(currentPage * PAGE_SIZE, filteredRooms.length)}</span> of <span className="font-bold text-[#131b2e]">{filteredRooms.length}</span> rooms
-          </div>
-          <div className="flex gap-2 items-center">
-            <button
-              type="button"
-              disabled={currentPage === 1}
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#424754] hover:text-[#0058be] transition-colors shadow-sm disabled:opacity-40"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#0058be] text-white font-bold text-xs">{currentPage}</button>
-            <button
-              type="button"
-              disabled={currentPage === totalPages}
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white text-[#424754] hover:text-[#0058be] transition-colors shadow-sm disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
       </div>
 
       {showAddRoomModal && (

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { UserCircle, Landmark, Eye, RefreshCw, EyeOff } from "lucide-react";
+import { useAuth } from "../../auth/AuthContext";
+import { updateProfile } from "../../api/user.api";
 import { toast } from "react-toastify";
-import { updateHostel } from "../../api/hostel.api";
 import {
   getStripeKeys,
   saveStripeKeys,
@@ -11,12 +12,14 @@ import { getErrorMessage } from "../../utils/getErrorMessage";
 
 
 export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
-  const [selectedHostelId, setSelectedHostelId] = useState("");
+  const { user, updateUser } = useAuth();
 
-  const [hostelName, setHostelName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
   const [profileUpdating, setProfileUpdating] = useState(false);
+  const [avatarHover, setAvatarHover] = useState(false);
 
 
   const [stripeLoading, setStripeLoading] = useState(true);
@@ -29,30 +32,13 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
   const [stripeConfigured, setStripeConfigured] = useState(false);
 
   useEffect(() => {
-    if (!hostels.length) {
-      setSelectedHostelId("");
-      setHostelName("");
-      setContactEmail("");
-      setDescription("");
-      return;
-    }
-
-    const first = hostels[0]?._id || "";
-    setSelectedHostelId((prev) => prev || first);
-  }, [hostels]);
-
-  const selectedHostel = useMemo(
-    () => hostels.find((h) => String(h._id) === String(selectedHostelId)) || null,
-    [hostels, selectedHostelId]
-  );
-
-  useEffect(() => {
-    if (!selectedHostel) return;
-
-    setHostelName(selectedHostel.name || "");
-    setContactEmail(selectedHostel.contactEmail || selectedHostel.email || "");
-    setDescription(selectedHostel.description || "");
-  }, [selectedHostel]);
+    // keep in sync if auth user updates
+    if (!user) return;
+    setOwnerName(user.name || "");
+    setContactEmail(user.email || "");
+    setDescription(user.description || "");
+    setImage(user.image || "");
+  }, [user]);
 
   const loadStripe = async () => {
     try {
@@ -97,24 +83,22 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
   }, []);
 
   const handleProfileSave = async () => {
-    if (!selectedHostel?._id) {
-      toast.error("No hostel selected");
-      return;
-    }
-
-    if (!hostelName.trim()) {
-      toast.error("Hostel name is required");
+    if (!ownerName.trim()) {
+      toast.error("Name is required");
       return;
     }
 
     try {
       setProfileUpdating(true);
-      await updateHostel(selectedHostel._id, {
-        ...selectedHostel,
-        name: hostelName.trim(),
+      const payload = {
+        name: ownerName.trim(),
+        email: contactEmail.trim(),
         description: description.trim(),
-        contactEmail: contactEmail.trim(),
-      });
+        image: image || "",
+      };
+      const res = await updateProfile(payload);
+      const updatedUser = res?.data?.user || res?.data || null;
+      if (updatedUser && updateUser) updateUser(updatedUser);
       toast.success("Profile updated");
       if (onDataRefresh) await onDataRefresh();
     } catch (err) {
@@ -124,7 +108,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     }
   };
 
-  
+
 
   const handleStripeSave = async () => {
     if (stripeConfigured) {
@@ -181,7 +165,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       toast.error(getErrorMessage(err, "Failed to remove keys"));
     }
   };
-  
+
 
   return (
     <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto bg-[#faf8ff] font-sans text-[#131b2e]">
@@ -194,20 +178,6 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
         </p>
       </header>
 
-      <div className="mb-6">
-        <label className="block text-xs font-bold text-[#424754] uppercase tracking-widest mb-2">Selected Hostel</label>
-        <select
-          value={selectedHostelId}
-          onChange={(e) => setSelectedHostelId(e.target.value)}
-          className="bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 min-w-[260px] focus:ring-2 focus:ring-[#0058be]/20 outline-none"
-        >
-          {hostels.length === 0 && <option value="">No hostels available</option>}
-          {hostels.map((h) => (
-            <option key={h._id} value={h._id}>{h.name}</option>
-          ))}
-        </select>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-7 space-y-8">
           <section className="bg-white p-8 rounded-2xl shadow-sm border border-[#eaedff]">
@@ -216,31 +186,65 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                 <h2 className="text-2xl font-extrabold text-[#131b2e]">General Profile</h2>
                 <p className="text-sm text-[#424754]">Update your public hostel identity.</p>
               </div>
-              <UserCircle className="text-[#0058be] w-8 h-8" />
+              <div
+                className="relative w-20 h-20 rounded-full overflow-hidden bg-[#eaf1ff] cursor-pointer hover:ring-2 hover:ring-[#0058be]/20 transition-all"
+                onClick={() => document.getElementById("owner-image-file").click()}
+                onMouseEnter={() => setAvatarHover(true)}
+                onMouseLeave={() => setAvatarHover(false)}
+              >
+                {image ? (
+                  <img src={image} alt="Owner" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="text-[#0058be] w-20 h-20" />
+                )}
+                <div className={`absolute bg-black inset-0 h-full w-full z-50 flex items-center justify-center transition-opacity pointer-events-none ${avatarHover ? "opacity-80" : "opacity-0"}`}>
+                  <span className="text-sm text-white font-semibold">Change</span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-[#424754] tracking-wide uppercase">Hostel Name</label>
+            <div className="mb-6">
+
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col">
+                  <label className="block text-xs font-bold text-[#424754] uppercase tracking-widest mb-2">Name</label>
                   <input
                     className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
                     type="text"
-                    value={hostelName}
-                    onChange={(e) => setHostelName(e.target.value)}
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="Your name"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-sm font-bold text-[#424754] tracking-wide uppercase">Contact Email</label>
+                <div className="flex flex-col">
+                  <label className="block text-xs font-bold text-[#424754] uppercase tracking-widest mb-2">Email</label>
                   <input
-                    className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
+                    className="w-full mt-2 bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="owner@hostel.com"
+                    placeholder="your@email.com"
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-6">
+              <input
+                id="owner-image-file"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setImage(reader.result);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-[#424754] tracking-wide uppercase">Bio / Description</label>
                 <textarea
@@ -254,7 +258,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                 <button
                   type="button"
                   onClick={handleProfileSave}
-                  disabled={profileUpdating || !selectedHostelId}
+                  disabled={profileUpdating}
                   className="px-6 py-3 bg-[#e2e7ff] text-[#0058be] font-bold rounded-full hover:bg-[#dae2fd] transition-colors disabled:opacity-50"
                 >
                   {profileUpdating ? "Updating..." : "Update Profile"}
@@ -262,7 +266,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
               </div>
             </div>
           </section>
-          
+
         </div>
 
         <div className="lg:col-span-5 space-y-8">
