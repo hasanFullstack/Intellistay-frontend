@@ -22,6 +22,11 @@ const AddRoom = ({ hostelId, onSuccess }) => {
       return;
     }
 
+    if (!data.roomLabel || String(data.roomLabel).trim().length === 0) {
+      setError("Room label is required");
+      return;
+    }
+
     if (data.images.length === 0) {
       setError("Please upload at least one image");
       return;
@@ -107,17 +112,18 @@ const AddRoom = ({ hostelId, onSuccess }) => {
 
       <div className="mb-3">
         <label htmlFor="roomLabel" className="form-label fw-semibold">
-          Room Label (optional)
+          Room Label
         </label>
         <input
           id="roomLabel"
           type="text"
+          required
           className="form-control form-control-lg"
           placeholder="e.g., A101, Room 1, Block B"
           value={data.roomLabel}
           onChange={(e) => setData({ ...data, roomLabel: e.target.value })}
         />
-        <small className="text-muted d-block mt-1">Keep a short label to distinguish multiple rooms of the same type.</small>
+        <small className="text-muted d-block mt-1">A short label to distinguish multiple rooms.</small>
       </div>
 
       <div className="mb-3">
