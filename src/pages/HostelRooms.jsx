@@ -188,8 +188,8 @@ const HostelRooms = () => {
 
         {/* HERO */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
-          <div className="lg:col-span-7 flex flex-col justify-end">
-            <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 bg-black rounded-full text-sm text-white font-bold">Premium Experience</div>
+          <div className="lg:col-span-7 flex flex-col ">
+            <div className="mb-6 inline-flex w-fit items-center gap-2 px-3 py-1 bg-black rounded-full text-sm text-white font-bold">Premium Experience</div>
 
             <h1 className="text-5xl md:text-7xl font-extrabold !text-[#235784] mb-6">{hostel.name}</h1>
 
@@ -203,7 +203,7 @@ const HostelRooms = () => {
                 {hostel.gender || "Male"} Hostel
               </span>
             </div>
-
+            <h1 className="text-2xl font-bold mb-6">Description</h1>
             <p className="text-xl max-w-2xl mb-8">{hostel.description}</p>
           </div>
 
@@ -276,14 +276,14 @@ const HostelRooms = () => {
         </section>
 
         {/* STATUS */}
-        <div className="mb-16 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-          <div className="lg:col-span-2">
+        <div className="mb-16 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          <div className="lg:col-span-7">
             <div className="mb-16">
               <div className="flex-1">
                 <h2 className="text-2xl font-bold mb-6">Status Overview</h2>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="flex justify-between items-center p-8 bg-[#f2f4f7] rounded-xl">
+                  <div className="flex justify-between items-center p-8 bg-white rounded-xl">
                     <div>
                       <p className="text-on-surface-variant text-base">Total Rooms</p>
                       <p className="text-4xl font-black">{rooms.length}</p>
@@ -291,7 +291,7 @@ const HostelRooms = () => {
                     <Building2 className="text-[#c2cdde] w-12 h-12" />
                   </div>
 
-                  <div className="flex justify-between items-center p-8 bg-[#f2f4f7] rounded-xl">
+                  <div className="flex justify-between items-center p-8 bg-white rounded-xl">
                     <div>
                       <p className="text-on-surface-variant text-base">Available Now</p>
                       <p className="text-4xl font-bold text-[#235784]">{filteredRooms.length}</p>
@@ -304,13 +304,13 @@ const HostelRooms = () => {
 
             {/* AMENITIES */}
             {hostel.amenities && hostel.amenities.length > 0 && (
-              <section className="mb-16">
-                <h2 className="text-2xl font-bold mb-8 !text-[#235784]">Curated Amenities</h2>
+              <section className="bg-white p-8 rounded-xl shadow-sm border border-slate-100 mb-16">
+                <h2 className="text-2xl font-bold mb-8">Curated Amenities</h2>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   {hostel.amenities.map((amenity, i) => (
-                    <div key={i} className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
-                      <span className="material-symbols-outlined text-[#003b44] mb-3 text-3xl">{amenityIcons(amenity)}</span>
+                    <div key={i} className="flex items-center gap-2 p-6">
+                      <span className="material-symbols-outlined text-[#003b44] text-3xl">{amenityIcons(amenity)}</span>
                       <span className="text-sm font-semibold">{amenity}</span>
                     </div>
                   ))}
@@ -321,7 +321,7 @@ const HostelRooms = () => {
             {/* Filters */}
             <div className="flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between gap-8">
-                <h2 className="!text-[#235784] !text-2xl font-bold">Available Spaces</h2>
+                <h2 className="text-2xl font-bold mb-8">Available Spaces</h2>
               </div>
             </div>
 
@@ -399,9 +399,9 @@ const HostelRooms = () => {
             </section>
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-5">
             {/* Main White Card */}
-            <div className="bg-slate-50/50 rounded-[32px] p-8 border border-slate-100 shadow-sm">
+            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
               <h2 className="!text-2xl font-bold text-black !mb-8">Location Highlights</h2>
 
               {/* Features List */}
