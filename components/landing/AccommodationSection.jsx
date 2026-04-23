@@ -54,14 +54,14 @@ const AccommodationSection = () => {
 
         {/* Right Side: Image with Floating Card */}
         <div className="w-full lg:w-1/2 relative h-[500px] lg:h-[600px]">
-          {/* Main Background Image */}
-          <div className="w-full h-full rounded-2xl overflow-hidden shadow-2xl">
-            <img
-              src="https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=1000"
-              alt="Modern hostel dorm room"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {/* Main Background Image: use background-image to ensure full coverage */}
+          <div
+            className="w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://images.pexels.com/photos/271618/pexels-photo-271618.jpeg?auto=compress&cs=tinysrgb&w=1000')",
+            }}
+          />
 
           {/* The Overlapping Floating Card */}
           <div className="absolute top-1/2 -left-4 md:-left-12 lg:-left-20 -translate-y-1/2 bg-white p-8 md:p-10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-[260px] md:w-[320px] z-20">

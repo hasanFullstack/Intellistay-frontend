@@ -7,6 +7,9 @@ import RecommendedHostels from "./RecommendedHostels";
 import { Link, useNavigate } from "react-router-dom";
 import { useFavorites } from "../../hooks/useFavorites";
 import { Heart } from "lucide-react";
+import AppLoader from "../../components/ui/AppLoader";
+import EmptyState from "../../components/ui/EmptyState";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 import {
   Calendar,
   MapPin,
@@ -41,7 +44,7 @@ const UserDashboard = () => {
       const res = await getUserBookings(user._id);
       setBookings(res.data || []);
     } catch (err) {
-      toast.error("Failed to load bookings");
+      toast.error(getErrorMessage(err, "Failed to load bookings"));
     } finally {
       setLoading(false);
     }
@@ -55,7 +58,7 @@ const UserDashboard = () => {
       setCancelModalId(null);
       await loadBookings();
     } catch (err) {
-      toast.error("Failed to cancel booking");
+      toast.error(getErrorMessage(err, "Failed to cancel booking"));
     } finally {
       setCancelLoading(false);
     }
@@ -79,7 +82,7 @@ const UserDashboard = () => {
   const formatPrice = (p) => {
     if (p === undefined || p === null) return "—";
     const n = Number(p);
-    if (Number.isFinite(n)) return `₹${n.toLocaleString()}`;
+    if (Number.isFinite(n)) return `Rs ${n.toLocaleString()}`;
     return String(p);
   };
 
@@ -180,7 +183,7 @@ const UserDashboard = () => {
 
               <div className="bg-yellow-100 p-6 rounded-xl">
                 <p className="text-2xl font-bold text-amber-700">
-                  ₹{totalSpent.toLocaleString()}
+                  Rs {totalSpent.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Total Spent</p>
               </div>
@@ -228,31 +231,24 @@ const UserDashboard = () => {
             {activeTab === "bookings" && (
               <div>
                 {loading ? (
-                  <div className="flex items-center justify-center py-20 bg-white rounded-xl">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#2b5a84] border-t-transparent mx-auto mb-3"></div>
-                      <p className="text-gray-500 text-sm">
-                        Loading your bookings...
-                      </p>
-                    </div>
+                  <div className="bg-white rounded-xl">
+                    <AppLoader message="Loading your bookings..." className="py-20" />
                   </div>
                 ) : bookings.length === 0 ? (
-                  <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
-                    <Inbox size={56} className="mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No Bookings Yet
-                    </h3>
-                    <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                      You haven't booked any hostels yet. Start exploring and find
-                      the perfect stay!
-                    </p>
-                    <a
-                      href="/hostels"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#2b5a84] text-white rounded-xl font-semibold hover:bg-[#1D4E89] transition"
-                    >
-                      Browse Hostels →
-                    </a>
-                  </div>
+                  <EmptyState
+                    icon={<Inbox size={56} />}
+                    title="No Bookings Yet"
+                    description="You haven't booked any hostels yet. Start exploring and find the perfect stay!"
+                    className="py-20"
+                    action={
+                      <a
+                        href="/hostels"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-[#2b5a84] text-white rounded-xl font-semibold hover:bg-[#1D4E89] transition"
+                      >
+                        Browse Hostels →
+                      </a>
+                    }
+                  />
                 ) : (
                   <>
                     {/* Active Bookings */}
@@ -291,7 +287,7 @@ const UserDashboard = () => {
                                     {getStatusBadge(booking.status)}
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-4 mb-4">
+                                  <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Check-in
@@ -302,18 +298,10 @@ const UserDashboard = () => {
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
-                                        Check-out
-                                      </p>
-                                      <p className="font-bold text-gray-900">
-                                        {formatDate(booking.endDate)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Price/Night
                                       </p>
                                       <p className="font-bold text-[#2b5a84]">
-                                        ₹{booking.roomId?.pricePerBed?.toLocaleString() || "—"}
+                                        Rs {booking.roomId?.pricePerBed?.toLocaleString() || "—"}
                                       </p>
                                     </div>
                                   </div>
@@ -379,7 +367,7 @@ const UserDashboard = () => {
                                     {getStatusBadge(booking.status)}
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-2 gap-4">
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Check-in
@@ -390,18 +378,10 @@ const UserDashboard = () => {
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
-                                        Check-out
-                                      </p>
-                                      <p className="font-bold text-gray-900">
-                                        {formatDate(booking.endDate)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 font-semibold mb-1">
                                         Total
                                       </p>
                                       <p className="font-bold text-[#2b5a84]">
-                                        ₹{booking.totalPrice?.toLocaleString() || "—"}
+                                        Rs {booking.totalPrice?.toLocaleString() || "—"}
                                       </p>
                                     </div>
                                   </div>
@@ -556,14 +536,6 @@ const UserDashboard = () => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
                   <p className="text-xs text-gray-500 mb-1 font-semibold">
-                    Check-out
-                  </p>
-                  <p className="font-bold text-gray-900">
-                    {formatDate(selectedBooking.endDate)}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1 font-semibold">
                     Room Type
                   </p>
                   <p className="font-bold text-gray-900">
@@ -591,7 +563,7 @@ const UserDashboard = () => {
                     Price/Bed
                   </p>
                   <p className="font-bold text-gray-900">
-                    ₹{selectedBooking.roomId?.pricePerBed?.toLocaleString() || "—"}
+                    Rs {selectedBooking.roomId?.pricePerBed?.toLocaleString() || "—"}
                   </p>
                 </div>
               </div>
@@ -599,7 +571,7 @@ const UserDashboard = () => {
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl flex justify-between items-center">
                 <span className="font-bold text-gray-700">Total Amount</span>
                 <span className="text-2xl font-bold text-[#2b5a84]">
-                  ₹{selectedBooking.totalPrice?.toLocaleString() || "—"}
+                  Rs {selectedBooking.totalPrice?.toLocaleString() || "—"}
                 </span>
               </div>
 

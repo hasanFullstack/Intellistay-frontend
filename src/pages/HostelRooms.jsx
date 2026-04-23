@@ -3,6 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getHostelById } from "../api/hostel.api";
 import { getRoomsByHostel } from "../api/room.api";
 import { toast } from "react-toastify";
+import AppLoader from "../components/ui/AppLoader";
+import EmptyState from "../components/ui/EmptyState";
+import { getErrorMessage } from "../utils/getErrorMessage";
 import { ArrowLeft, Building2, CircleCheck, MapPin, SunSnow, Wifi, Coffee, DoorClosedLocked, TowerControl, CookingPot, Users, Navigation, UtensilsCrossed, ShieldCheck, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
 import "./Rooms.css";
 import "./HostelRooms.css";
@@ -99,10 +102,10 @@ const HostelRooms = () => {
 
         setHostel(hostelRes.data || null);
         setRooms(roomsRes.data || []);
-      } catch {
+      } catch (error) {
         setHostel(null);
         setRooms([]);
-        toast.error("Failed to load hostel rooms");
+        toast.error(getErrorMessage(error, "Failed to load hostel rooms"));
       } finally {
         setLoading(false);
       }
@@ -137,12 +140,7 @@ const HostelRooms = () => {
     return (
       <div className="rooms-page">
         <div className="container-fluid py-5">
-          <div className="text-center py-5">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mt-3">Loading hostel rooms...</p>
-          </div>
+          <AppLoader message="Loading hostel rooms..." className="py-20" />
         </div>
       </div>
     );
@@ -152,19 +150,21 @@ const HostelRooms = () => {
     return (
       <div className="rooms-page">
         <div className="container-fluid py-5">
-          <div className="hostel-rooms-empty-state text-center">
-            <i className="bi bi-building"></i>
-            <h2>Hostel not found</h2>
-            <p>The hostel you selected could not be loaded.</p>
-            <button
-              type="button"
-              className="btn-book hostel-rooms-back-btn"
-              onClick={() => navigate("/hostels")}
-            >
-              <i className="bi bi-arrow-left"></i>
-              Back to Hostels
-            </button>
-          </div>
+          <EmptyState
+            title="Hostel not found"
+            description="The hostel you selected could not be loaded."
+            className="py-20"
+            action={
+              <button
+                type="button"
+                className="btn-book hostel-rooms-back-btn"
+                onClick={() => navigate("/hostels")}
+              >
+                <i className="bi bi-arrow-left"></i>
+                Back to Hostels
+              </button>
+            }
+          />
         </div>
       </div>
     );

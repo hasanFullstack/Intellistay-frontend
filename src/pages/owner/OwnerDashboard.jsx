@@ -9,9 +9,11 @@ import HostelPortfolio from "./HostelPortfolio";
 import OwnerRoomDashboard from "./OwnerRoomDashboard";
 import OwnerSettingsPage from "./OwnerSettingsPage";
 import OwnerBookingsCentral from "./OwnerBookingsCentral";
-import { ArrowUp, BedDouble, Menu } from "lucide-react";
+import { ArrowUp, Menu } from "lucide-react";
+import OwnerPerformanceChart from "../../components/charts/OwnerPerformanceChart";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 const KpiCard = ({ title, value, badge, icon, Icon, trend, trendValue, colorClass = "text-primary" }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm flex flex-col justify-between border border-slate-100">
@@ -54,7 +56,6 @@ export default function OwnerDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chartMetric, setChartMetric] = useState("revenue");
-  const [chartHoverIndex, setChartHoverIndex] = useState(null);
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -74,7 +75,7 @@ export default function OwnerDashboard() {
       const bRes = await getOwnerBookings();
       setBookings(bRes?.data || []);
     } catch (err) {
-      toast.error("Failed to load owner dashboard data");
+      toast.error(getErrorMessage(err, "Failed to load owner dashboard data"));
     } finally {
       setLoading(false);
     }
@@ -113,105 +114,93 @@ export default function OwnerDashboard() {
     await loadDashboardData();
   };
 
-  const parseBookingDate = (booking) => {
-    const raw = booking?.startDate || booking?.checkInDate || booking?.checkIn || booking?.createdAt || null;
-    if (!raw) return null;
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
-
-  const totalRooms = useMemo(
-    () => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0),
-    [roomsByHostel],
+  const totalRooms = useMemo(() => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0), [roomsByHostel]);
+  const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
+  const activeBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
+  const monthlyRevenue = useMemo(() => bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + (b.totalPrice || 0), 0), [bookings]);
+  const roomPrices = useMemo(
+    () =>
+      Object.values(roomsByHostel)
+        .flatMap((rooms) => rooms || [])
+        .map((room) => Number(room?.pricePerBed || 0))
+        .filter((price) => Number.isFinite(price) && price > 0),
+    [roomsByHostel]
   );
-  const activeBookings = bookings.filter((b) => b.status === "confirmed" || b.status === "pending").length;
+  const avgNightPrice = useMemo(() => {
+    if (!roomPrices.length) return 0;
+    const total = roomPrices.reduce((sum, price) => sum + price, 0);
+    return Math.round(total / roomPrices.length);
+  }, [roomPrices]);
+  const totalBeds = useMemo(
+    () =>
+      Object.values(roomsByHostel)
+        .flatMap((rooms) => rooms || [])
+        .reduce((sum, room) => sum + Math.max(0, Number(room?.totalBeds || 0)), 0),
+    [roomsByHostel]
+  );
 
-  const { totalBeds, availableBeds } = useMemo(() => {
-    let beds = 0;
-    let available = 0;
-    Object.values(roomsByHostel).forEach((rooms) => {
-      (rooms || []).forEach((room) => {
-        beds += Number(room?.totalBeds || 0);
-        available += Number(room?.availableBeds || 0);
-      });
-    });
-    return { totalBeds: beds, availableBeds: available };
-  }, [roomsByHostel]);
-
-  const bookedBeds = Math.max(totalBeds - availableBeds, 0);
-  const occupancyRate = totalBeds > 0 ? Math.round((bookedBeds / totalBeds) * 100) : 0;
-
-  const monthlyRevenue = useMemo(() => {
+  const chartSeries = useMemo(() => {
     const now = new Date();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-
-    return (bookings || [])
-      .filter((b) => {
-        const status = String(b?.status || "").toLowerCase();
-        return status === "confirmed" || status === "completed";
-      })
-      .filter((b) => {
-        const d = parseBookingDate(b);
-        return d && d.getMonth() === month && d.getFullYear() === year;
-      })
-      .reduce((sum, b) => sum + (Number(b?.totalPrice) || 0), 0);
-  }, [bookings]);
-
-  const chartData = useMemo(() => {
-    const now = new Date();
-    const monthBuckets = Array.from({ length: 7 }, (_, idx) => {
+    const months = Array.from({ length: 7 }, (_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (6 - idx), 1);
-      return {
-        key: `${d.getFullYear()}-${d.getMonth()}`,
-        label: d.toLocaleDateString("en-US", { month: "short" }),
-        revenue: 0,
-        occupiedUnits: 0,
-      };
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-US", { month: "short" });
+      return { key, label };
     });
 
-    const bucketMap = Object.fromEntries(monthBuckets.map((b) => [b.key, b]));
+    const monthKeys = new Set(months.map((m) => m.key));
+    const revenueByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
+    const occupiedBedsByMonth = Object.fromEntries(months.map((m) => [m.key, 0]));
 
-    (bookings || []).forEach((b) => {
-      const d = parseBookingDate(b);
+    const getBookingDate = (b) => {
+      const raw =
+        b?.startDate ||
+        b?.checkInDate ||
+        b?.arrivalDate ||
+        b?.fromDate ||
+        b?.checkIn ||
+        b?.createdAt;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    bookings.forEach((b) => {
+      const d = getBookingDate(b);
       if (!d) return;
-
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const bucket = bucketMap[key];
-      if (!bucket) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthKeys.has(key)) return;
 
       const status = String(b?.status || "").toLowerCase();
-      if (status === "confirmed" || status === "completed") {
-        bucket.revenue += Number(b?.totalPrice) || 0;
+      const total = Number(b?.totalPrice || 0);
+      const beds = Number(b?.bedsBooked ?? b?.beds ?? b?.numberOfGuests ?? b?.guests ?? 1);
+
+      if (["confirmed", "completed"].includes(status) && Number.isFinite(total) && total > 0) {
+        revenueByMonth[key] += total;
       }
 
-      if (status === "confirmed" || status === "pending" || status === "completed") {
-        const units = Number(b?.bedsBooked ?? b?.quantity ?? b?.beds ?? 1);
-        bucket.occupiedUnits += Number.isFinite(units) && units > 0 ? units : 1;
+      if (["confirmed", "pending"].includes(status)) {
+        occupiedBedsByMonth[key] += Number.isFinite(beds) && beds > 0 ? beds : 1;
       }
     });
 
-    return monthBuckets.map((b) => {
-      const occupancy = totalBeds > 0 ? Math.min(100, Math.round((b.occupiedUnits / totalBeds) * 100)) : 0;
-      return {
-        ...b,
-        occupancy,
-      };
+    const revenueValues = months.map((m) => Math.round(revenueByMonth[m.key] || 0));
+    const occupancyValues = months.map((m) => {
+      if (totalBeds <= 0) return 0;
+      const pct = Math.round(((occupiedBedsByMonth[m.key] || 0) / totalBeds) * 100);
+      return Math.max(0, Math.min(100, pct));
     });
+
+    return {
+      months,
+      revenueValues,
+      occupancyValues,
+    };
   }, [bookings, totalBeds]);
 
-  const selectedChartIndex = chartHoverIndex ?? Math.max(chartData.length - 1, 0);
-  const selectedChartPoint = chartData[selectedChartIndex] || null;
-  const chartValues = chartData.map((d) => (chartMetric === "revenue" ? d.revenue : d.occupancy));
-  const chartMax = Math.max(...chartValues, 0);
-
-  const chartSummaryValue = selectedChartPoint
-    ? chartMetric === "revenue"
-      ? `Rs ${Math.round(selectedChartPoint.revenue).toLocaleString()}`
-      : `${selectedChartPoint.occupancy}%`
-    : chartMetric === "revenue"
-      ? "Rs 0"
-      : "0%";
+  const activeChartValues = chartMetric === "occupancy" ? chartSeries.occupancyValues : chartSeries.revenueValues;
+  const maxChartValue = Math.max(...activeChartValues, 1);
+  const occupancyRate = totalRooms > 0 ? Math.round((confirmedBookings / totalRooms) * 100) : 0;
 
   const recentBookingRows = bookings.slice(0, 6);
 
@@ -362,11 +351,17 @@ export default function OwnerDashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6 mb-10">
             <KpiCard title="Total Hostels" value={hostels.length} badge="+2 New" />
-            <KpiCard title="Total Rooms" value={totalRooms} Icon={BedDouble} colorClass="text-slate-700" />
+            <KpiCard title="Total Rooms" value={totalRooms} trend="stable" trendValue="Inventory" />
             <KpiCard title="Occupancy Rate" value={`${occupancyRate}%`} trend="up" trendValue="4.2%" />
             <KpiCard title="Monthly Revenue" value={`Rs ${monthlyRevenue.toLocaleString()}`} trend="up" trendValue="18%" colorClass="text-blue-600" />
             <KpiCard title="Active Bookings" value={activeBookings} trend="stable" trendValue="Stable" />
-            <KpiCard title="Avg Night Price" value="$65.5" trend="up" trendValue="$4.0" colorClass="text-purple-600" />
+            <KpiCard
+              title="Avg Night Price"
+              value={`Rs ${avgNightPrice.toLocaleString()}`}
+              trend="stable"
+              trendValue={`${roomPrices.length} priced rooms`}
+              colorClass="text-purple-600"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
@@ -381,52 +376,27 @@ export default function OwnerDashboard() {
                     <button
                       type="button"
                       onClick={() => setChartMetric("revenue")}
-                      className={`px-4 py-1 text-xs font-bold rounded-md transition ${chartMetric === "revenue" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+                      className={`px-4 py-1 text-xs font-bold rounded-md ${chartMetric === "revenue" ? "bg-white shadow-sm text-[#131b2e]" : "text-slate-500 hover:text-slate-700"}`}
                     >
                       Revenue
                     </button>
                     <button
                       type="button"
                       onClick={() => setChartMetric("occupancy")}
-                      className={`px-4 py-1 text-xs font-bold rounded-md transition ${chartMetric === "occupancy" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+                      className={`px-4 py-1 text-xs font-bold rounded-md ${chartMetric === "occupancy" ? "bg-white shadow-sm text-[#131b2e]" : "text-slate-500 hover:text-slate-700"}`}
                     >
                       Occupancy
                     </button>
                   </div>
                 </div>
-                <div className="mb-4 flex items-baseline justify-between">
-                  <div className="text-2xl font-extrabold text-slate-900">{chartSummaryValue}</div>
-                  <div className="text-xs font-semibold text-slate-500">
-                    {selectedChartPoint ? selectedChartPoint.label : "-"}
-                  </div>
-                </div>
-                <div className="h-64 grid grid-cols-7 items-end gap-3">
-                  {chartData.map((point, i) => {
-                    const value = chartMetric === "revenue" ? point.revenue : point.occupancy;
-                    const ratio = chartMax > 0 ? value / chartMax : 0;
-                    const heightPct = value > 0 ? Math.max(ratio * 100, 10) : 5;
-                    const isActive = i === selectedChartIndex;
-
-                    return (
-                      <button
-                        key={point.key}
-                        type="button"
-                        onMouseEnter={() => setChartHoverIndex(i)}
-                        onFocus={() => setChartHoverIndex(i)}
-                        onMouseLeave={() => setChartHoverIndex(null)}
-                        className="group flex h-full flex-col justify-end"
-                        title={`${point.label}: ${chartMetric === "revenue" ? `Rs ${Math.round(point.revenue).toLocaleString()}` : `${point.occupancy}%`}`}
-                      >
-                        <div
-                          style={{ height: `${heightPct}%` }}
-                          className={`w-full rounded-t-lg transition-all duration-300 ${isActive ? "bg-gradient-to-t from-blue-600 to-indigo-500" : "bg-blue-100 group-hover:bg-blue-200"}`}
-                        />
-                        <span className={`mt-2 text-[10px] font-bold ${isActive ? "text-slate-800" : "text-slate-400"}`}>
-                          {point.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div>
+                  {/* Chart.js component - interactive and responsive */}
+                  <OwnerPerformanceChart
+                    months={chartSeries.months}
+                    revenueValues={chartSeries.revenueValues}
+                    occupancyValues={chartSeries.occupancyValues}
+                    metric={chartMetric}
+                  />
                 </div>
               </div>
 

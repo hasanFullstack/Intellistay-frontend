@@ -300,3 +300,21 @@ button.btn-icon-danger,
     width: 235px;
   }
 }
+
+@media (max-width: 640px) {
+  .navbar__inner,
+  .container,
+  .container-fluid {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .navbar__logo-img {
+    height: 44px;
+    width: 180px;
+  }
+
+  .btn {
+    white-space: normal;
+  }
+}

@@ -47,6 +47,21 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas,
+embed,
+object {
+  max-width: 100%;
+  height: auto;
 }
 
 h1 {
@@ -79,5 +94,16 @@ button:focus-visible {
   :root {
     color: var(--color-black);
     background-color: var(--color-white);
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: clamp(1.8rem, 7vw, 2.4rem);
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: clamp(1.35rem, 5.8vw, 1.9rem);
   }
 }

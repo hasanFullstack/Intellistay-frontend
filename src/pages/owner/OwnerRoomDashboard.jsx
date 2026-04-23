@@ -22,30 +22,20 @@ const statusDotClass = {
   Booked: "bg-[#0058be]",
 };
 
-const inferRoomStatus = (room) => {
-  if (room?.status) {
-    const normalized = String(room.status).toLowerCase();
-    if (normalized.includes("book") || normalized.includes("full")) return "Booked";
-    if (normalized.includes("avail") || normalized.includes("available")) return "Available";
-    // ignore maintenance markers for this dashboard
-  }
-
-  // treat maintenance-marked rooms as available on this dashboard
-  if (room?.isUnderMaintenance || room?.maintenanceRequired) return "Available";
-  if (Number(room?.availableBeds) === 0) return "Booked";
-  return "Available";
-};
-
-const parseSuggestedPrice = (response, fallback) => {
+const parseSuggestedPrice = (response) => {
   const data = response?.data;
   const val =
+    data?.suggested_price ??
     data?.suggestedPrice ??
     data?.price ??
     data?.suggested ??
+    data?.data?.suggested_price ??
     data?.data?.suggestedPrice ??
     data?.data?.price;
+
   const n = Number(val);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
 };
 
 const addDays = (d, days) => {
@@ -70,29 +60,46 @@ const isSameDay = (a, b) => {
 const getBookingPeriod = (booking) => {
   if (!booking) return { start: null, end: null };
 
-  const startCandidates = [booking.arrivalDate, booking.start, booking.checkIn, booking.createdAt];
-  const endCandidates = [booking.departureDate, booking.end, booking.checkOut];
+  const startCandidates = [
+    booking.startDate,
+    booking.checkInDate,
+    booking.arrivalDate,
+    booking.fromDate,
+    booking.start,
+    booking.checkIn,
+    booking.createdAt,
+  ];
+  const endCandidates = [
+    booking.endDate,
+    booking.checkOutDate,
+    booking.departureDate,
+    booking.toDate,
+    booking.end,
+    booking.checkOut,
+  ];
 
   const rawStart = startCandidates.find(Boolean);
   const rawEnd = endCandidates.find(Boolean);
 
-  const nights = Number(booking.nights ?? booking.numberOfNights ?? booking.stayNights ?? 0);
+  const nights = Number(booking.nights ?? booking.numberOfNights ?? booking.stayNights ?? 1);
 
   const start = toDateOnly(rawStart);
   const end = toDateOnly(rawEnd);
 
   if (start && end) return { start, end };
-  if (start && nights > 0) {
-    return { start, end: toDateOnly(addDays(start, nights)) };
+  if (start) {
+    const span = Math.max(1, nights);
+    return { start, end: toDateOnly(addDays(start, span - 1)) };
   }
-  if (end && nights > 0) {
-    return { start: toDateOnly(addDays(end, -nights)), end };
+  if (end) {
+    const span = Math.max(1, nights);
+    return { start: toDateOnly(addDays(end, -(span - 1))), end };
   }
 
-  // fallback: if createdAt exists, treat createdAt as start and assume 1 night
+  // fallback: if createdAt exists, treat createdAt as single-day stay
   if (!start && booking.createdAt) {
     const s = toDateOnly(booking.createdAt);
-    return { start: s, end: toDateOnly(addDays(s, Math.max(1, nights || 1))) };
+    return { start: s, end: s };
   }
 
   return { start: start || null, end: end || null };
@@ -116,7 +123,7 @@ export default function OwnerRoomDashboard({
   const [isSyncingPricing, setIsSyncingPricing] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
 
-  const activeBookingCountByRoom = useMemo(() => {
+  const bookedBedsByRoom = useMemo(() => {
     const map = {};
 
     bookings.forEach((booking) => {
@@ -127,7 +134,15 @@ export default function OwnerRoomDashboard({
       if (!roomId) return;
 
       const key = String(roomId);
-      map[key] = (map[key] || 0) + 1;
+      const beds = Number(
+        booking?.bedsBooked ??
+        booking?.beds ??
+        booking?.numberOfGuests ??
+        booking?.guests ??
+        1
+      );
+
+      map[key] = (map[key] || 0) + (Number.isFinite(beds) && beds > 0 ? beds : 1);
     });
 
     return map;
@@ -140,10 +155,16 @@ export default function OwnerRoomDashboard({
       const rooms = roomsByHostel[hostel._id] || [];
 
       rooms.forEach((room) => {
-        const currentPrice = Number(room?.pricePerBed || 0);
-        const bookingCount = activeBookingCountByRoom[String(room?._id)] || 0;
-        const baseStatus = inferRoomStatus(room);
-        const status = baseStatus === "Maintenance" ? "Maintenance" : bookingCount > 0 ? "Booked" : baseStatus;
+        const currentPrice = Math.round(Number(room?.pricePerBed || 0));
+        const totalBeds = Math.max(0, Number(room?.totalBeds || 0));
+        const bookedBeds = Math.max(0, bookedBedsByRoom[String(room?._id)] || 0);
+        const remainingFromBookings = Math.max(0, totalBeds - bookedBeds);
+        const modelAvailable = Number(room?.availableBeds);
+        const hasModelAvailable = Number.isFinite(modelAvailable) && modelAvailable >= 0;
+        const remainingBeds = hasModelAvailable
+          ? Math.max(0, Math.min(Math.floor(modelAvailable), remainingFromBookings))
+          : remainingFromBookings;
+        const status = remainingBeds <= 0 ? "Booked" : "Available";
         const roomName = room?.roomLabel
           ? `${room.roomType || "Room"} - ${room.roomLabel}`
           : `${room.roomType || "Room"} - ${String(room?._id || "").slice(-4)}`;
@@ -154,10 +175,11 @@ export default function OwnerRoomDashboard({
           hostelName: hostel.name || "Hostel",
           name: roomName,
           type: room.roomType || "Shared",
-          capacity: `${Number(room.totalBeds || 0)} Pax`,
+          capacity: `${totalBeds} / ${remainingBeds} Beds`,
           price: currentPrice,
           status,
-          bookingCount,
+          totalBeds,
+          remainingBeds,
           img:
             room?.images?.[0] ||
             hostel?.images?.[0] ||
@@ -168,7 +190,7 @@ export default function OwnerRoomDashboard({
     });
 
     return rows;
-  }, [hostels, roomsByHostel, activeBookingCountByRoom]);
+  }, [hostels, roomsByHostel, bookedBedsByRoom]);
 
   const allRooms = useMemo(() => {
     return baseRooms.map((room) => ({
@@ -196,10 +218,11 @@ export default function OwnerRoomDashboard({
         baseRooms.map(async (room) => {
           try {
             const res = await getRoomSuggestedPrice(room.id);
+            const aiPrice = parseSuggestedPrice(res);
             return {
               id: room.id,
-              value: parseSuggestedPrice(res, room.price),
-              source: "ai",
+              value: aiPrice ?? room.price,
+              source: aiPrice ? "ai" : "fallback",
             };
           } catch {
             return {
@@ -274,6 +297,9 @@ export default function OwnerRoomDashboard({
     let activeGuests = 0;
 
     bookings.forEach((b) => {
+      const status = String(b?.status || "").toLowerCase();
+      if (!["pending", "confirmed"].includes(status)) return;
+
       const { start, end } = getBookingPeriod(b);
       if (!start || !end) return;
 
@@ -297,9 +323,9 @@ export default function OwnerRoomDashboard({
       room.name,
       room.type,
       room.capacity,
-      room.price.toFixed(2),
+      Math.round(room.price),
       room.status,
-      room.suggested.toFixed(2),
+      Math.round(room.suggested),
     ]);
 
     const csv = [
@@ -327,6 +353,7 @@ export default function OwnerRoomDashboard({
   };
 
   const formatPrice = (value) => `Rs ${Number(value || 0).toFixed(2)}`;
+  const formatIntegerPrice = (value) => `Rs ${Math.round(Number(value || 0)).toLocaleString()}`;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 flex-1 bg-[#faf8ff] font-sans text-[#131b2e]">
@@ -427,7 +454,7 @@ export default function OwnerRoomDashboard({
               <span className="text-3xl font-black text-[#131b2e]">{checkinStats.activeGuests}</span>
               <span className="text-sm text-[#424754]">Currently checked-in</span>
             </div>
-            <p className="mt-2 text-sm text-[#424754]">Counts are derived from owner bookings (uses arrival/departure/nights).</p>
+            <p className="mt-2 text-sm text-[#424754]">Counts are derived from confirmed/pending bookings using check-in/check-out dates.</p>
           </div>
 
           <div className="flex flex-col justify-between rounded-2xl bg-white border border-[#f3d9d9] p-5 shadow-sm md:col-span-1">
@@ -449,7 +476,7 @@ export default function OwnerRoomDashboard({
           <thead>
             <tr className="text-[#424754]">
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Room Name / Type</th>
-              <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider text-center">Capacity</th>
+              <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider text-center">Beds (Total / Remaining)</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Current Price</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Status</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">AI Suggested</th>
@@ -485,7 +512,7 @@ export default function OwnerRoomDashboard({
                     </span>
                   </td>
                   <td className="px-6 py-6">
-                    <div className="font-bold">{formatPrice(room.price)}</div>
+                    <div className="font-bold">{formatIntegerPrice(room.price)}</div>
                     <div className="text-[10px] text-[#424754]">Current saved price</div>
                   </td>
                   <td className="px-6 py-6">
@@ -497,7 +524,7 @@ export default function OwnerRoomDashboard({
                   <td className="px-6 py-6">
                       <div className={`space-y-2`}>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#783eb2]">{formatPrice(room.suggested)}</span>
+                        <span className="font-bold text-[#783eb2]">{formatIntegerPrice(room.suggested)}</span>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
                           {lift}
                         </span>

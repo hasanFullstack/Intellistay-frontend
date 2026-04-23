@@ -9,6 +9,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import { ReactPhotoSphereViewer } from "react-photo-sphere-viewer";
 import { useAuth } from "../auth/AuthContext";
 import { toast } from "react-toastify";
+import AppLoader from "../components/ui/AppLoader";
+import EmptyState from "../components/ui/EmptyState";
+import { getErrorMessage } from "../utils/getErrorMessage";
 import {
   Wifi,
   Car,
@@ -265,9 +268,7 @@ const RoomDetail = () => {
       if (error) throw error;
     } catch (err) {
       toast.error(
-        err.response?.data?.msg ||
-          err.message ||
-          "Booking failed. Please try again.",
+        getErrorMessage(err, "Booking failed. Please try again."),
       );
     } finally {
       setBookingLoading(false);
@@ -307,10 +308,7 @@ const RoomDetail = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading room details...</p>
-        </div>
+        <AppLoader message="Loading room details..." className="py-24" />
       </div>
     );
   }
@@ -318,15 +316,19 @@ const RoomDetail = () => {
   if (!room || !hostel) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-slate-100">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Room not found</p>
-          <button
-            onClick={() => navigate(backToRoomsPath)}
-            className="inline-block px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-dark)] transition"
-          >
-            Back to Hostel Rooms
-          </button>
-        </div>
+        <EmptyState
+          title="Room not found"
+          description="The room may have been removed or is currently unavailable."
+          className="py-20 px-6"
+          action={
+            <button
+              onClick={() => navigate(backToRoomsPath)}
+              className="inline-block px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-dark)] transition"
+            >
+              Back to Hostel Rooms
+            </button>
+          }
+        />
       </div>
     );
   }

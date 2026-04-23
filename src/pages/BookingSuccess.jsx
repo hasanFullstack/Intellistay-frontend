@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useMemo } from "react";
 import { getBookingBySession, finalizeBooking } from "../api/booking.api";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 // Floating particle component
 const Particle = ({ delay, size, x, y, duration }) => (
@@ -113,7 +114,7 @@ const BookingSuccess = () => {
         }
       } catch (err) {
         setStatus("error");
-        setErrorMsg(err.response?.data?.message || err.message || "Failed to confirm booking.");
+        setErrorMsg(getErrorMessage(err, "Failed to confirm booking."));
         console.error("Fallback finalize error:", err);
       }
     };
@@ -489,7 +490,7 @@ const BookingSuccess = () => {
                         color: "#191c1e",
                       }}
                     >
-                      ₹{booking.totalPrice?.toLocaleString() || "—"}
+                      Rs {booking.totalPrice?.toLocaleString() || "—"}
                     </p>
                   </motion.div>
                 </div>

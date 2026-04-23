@@ -17,6 +17,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import { updateHostel, deleteHostel } from "../../api/hostel.api";
 import { toast } from "react-toastify";
+import AppLoader from "../../components/ui/AppLoader";
+import EmptyState from "../../components/ui/EmptyState";
+import { getErrorMessage } from "../../utils/getErrorMessage";
 
 const getStatusFor = (occupancy, revenue) => {
   if (occupancy >= 98) return { label: "Full Capacity", color: "bg-primary/90" };
@@ -188,7 +191,7 @@ export default function HostelPortfolio({
         await onHostelUpdated();
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to update hostel");
+      toast.error(getErrorMessage(err, "Failed to update hostel"));
     } finally {
       setSaving(false);
     }
@@ -211,7 +214,7 @@ export default function HostelPortfolio({
       closeEdit();
       if (onHostelUpdated) await onHostelUpdated();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to delete hostel");
+      toast.error(getErrorMessage(err, "Failed to delete hostel"));
     } finally {
       setDeleting(false);
     }
@@ -233,7 +236,7 @@ export default function HostelPortfolio({
       toast.success("Hostel deleted");
       if (onHostelUpdated) await onHostelUpdated();
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to delete hostel");
+      toast.error(getErrorMessage(err, "Failed to delete hostel"));
     } finally {
       setDeleting(false);
     }
@@ -277,12 +280,18 @@ export default function HostelPortfolio({
 
       <div className={`grid grid-cols-1 ${viewMode === "grid" ? "md:grid-cols-2 xl:grid-cols-3" : "xl:grid-cols-1"} gap-8`}>
         {loading && (
-          <div className="col-span-full text-center py-20 text-slate-500">Loading hostels...</div>
+          <div className="col-span-full bg-white rounded-xl">
+            <AppLoader message="Loading hostels..." className="py-20" />
+          </div>
         )}
 
         {!loading && filteredCards.length === 0 && (
-          <div className="col-span-full text-center py-20 text-slate-500">
-            No hostels found for selected filter.
+          <div className="col-span-full">
+            <EmptyState
+              title="No hostels found"
+              description="Try changing your filter or add a new hostel to grow your portfolio."
+              className="py-20"
+            />
           </div>
         )}
 
