@@ -382,7 +382,9 @@ const RoomDetail = () => {
                 </span>
               </div>
               <h1 className="text-5xl font-extrabold text-blue-900 leading-[1.1] mb-2 tracking-tight font-headline">
-                {hostel.name}
+                {room?.roomLabel
+                  ? `${room.roomLabel} - ${hostel?.name || "Hostel"}`
+                  : ` ${hostel?.name || "Hostel"}`}
               </h1>
               <p className="text-lg text-slate-600 flex items-center gap-1">
                 <MapPin size={20} className="text-[var(--color-primary)]" /> {hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}
@@ -494,24 +496,34 @@ const RoomDetail = () => {
                     {occupants.map((o, idx) => (
                       <div
                         key={o._id}
-                        className="p-4 bg-white rounded-lg border border-slate-100 shadow-sm flex items-center justify-between"
+                        className="p-4 bg-white rounded-lg border border-slate-100 shadow-sm flex items-center justify-between gap-4"
                       >
-                        <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-                            {Array.isArray(o.bedNumbers) && o.bedNumbers.length > 0
-                              ? `Bed${o.bedNumbers.length > 1 ? "s" : ""} ${o.bedNumbers.join(", ")}`
-                              : o.bedsBooked > 1
-                                ? `${o.bedsBooked} beds occupied`
-                                : `Bed ${idx + 1}`}
-                          </p>
-                          <p className="font-semibold text-slate-800">{o.name}</p>
-                          {o.similarityScore ? (
-                            <p className="text-sm text-slate-600">
-                              {o.matchLabel?.text} {o.matchLabel?.emoji}
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold text-sm overflow-hidden">
+                            {o.photo ? (
+                              <img src={o.photo} alt={o.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{(o.name || "?").split(" ").map(s => s[0]).filter(Boolean).slice(0, 2).join("")}</span>
+                            )}
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
+                              {Array.isArray(o.bedNumbers) && o.bedNumbers.length > 0
+                                ? `Bed${o.bedNumbers.length > 1 ? "s" : ""} ${o.bedNumbers.join(", ")}`
+                                : o.bedsBooked > 1
+                                  ? `${o.bedsBooked} beds occupied`
+                                  : `Bed ${idx + 1}`}
                             </p>
-                          ) : (
-                            <p className="text-sm text-slate-500">Compatibility unavailable</p>
-                          )}
+                            <p className="font-semibold text-slate-800">{o.name}</p>
+                            {o.similarityScore ? (
+                              <p className="text-sm text-slate-600">
+                                {o.matchLabel?.text} {o.matchLabel?.emoji}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-slate-500">Compatibility unavailable</p>
+                            )}
+                          </div>
                         </div>
 
                         {o.similarityScore ? (
@@ -617,63 +629,64 @@ const RoomDetail = () => {
               </div>
 
               <div className="sticky top-28 bg-white/85 backdrop-blur-xl border border-white/20 p-8 rounded-xl shadow-2xl shadow-blue-900/10 z-10 w-full ">
-              <div className="flex justify-between items-end mb-2">
-                <div>
-                  <span className="text-4xl font-black text-blue-900 tracking-tighter">
-                    Rs {room.pricePerBed}
-                  </span>
-                  <span className="text-slate-600 font-medium"> /month</span>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <p className="text-xs font-bold text-slate-500 mb-1 tracking-widest uppercase">
-                      ROOM TYPE
-                  </p>
-                  <p className="font-semibold text-[var(--color-primary)]  capitalize mb-0">
-                    {room.roomType} {room.roomLabel ? <span className="text-sm text-gray-600 font-medium">· {room.roomLabel}</span> : null}
-                  </p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg flex justify-between items-center">
+                <div className="flex justify-between items-end mb-2">
                   <div>
+                    <span className="text-4xl font-black text-blue-900 tracking-tighter">
+                      Rs {room.pricePerBed}
+                    </span>
+                    <span className="text-slate-600 font-medium"> /month</span>
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <div className="p-4 bg-slate-50 rounded-lg">
                     <p className="text-xs font-bold text-slate-500 mb-1 tracking-widest uppercase">
-                      STAY PERIOD
+                      ROOM TYPE
                     </p>
-                    <p className="font-semibold text-[var(--color-primary)] ">
-                      Monthly Subscription
+                    <p className="font-semibold text-[var(--color-primary)]  capitalize mb-0">
+                      {room?.roomLabel
+                        ? `${room.roomLabel} - ${room.roomType || "Room"}`
+                        : `${room?.roomType || "Room"}`}
                     </p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg flex justify-between items-center">
+                    <div>
+                      <p className="text-xs font-bold text-slate-500 mb-1 tracking-widest uppercase">
+                        STAY PERIOD
+                      </p>
+                      <p className="font-semibold text-[var(--color-primary)] ">
+                        Monthly Subscription
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleBooking}
+                  disabled={room.availableBeds === 0}
+                  className={`w-full py-4 text-white font-bold rounded-lg text-lg shadow-lg hover:scale-[0.98] transition-transform ${room.availableBeds > 0
+                      ? "bg-[var(--color-primary)] shadow-blue-600/20"
+                      : "bg-slate-400 cursor-not-allowed shadow-none"
+                    }`}
+                >
+                  {room.availableBeds > 0 ? "Reserve Now" : "Not Available"}
+                </button>
+
+                <p className="text-center text-xs text-slate-500 mt-4 font-medium italic">
+                  You won't be charged yet
+                </p>
+
+                <div className="mt-8 pt-8 border-t border-slate-200 space-y-4">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Service Fee</span>
+                    <span>Rs 500</span>
+                  </div>
+                  <div className="flex justify-between text-blue-900 font-bold text-lg pt-4 border-t border-dashed border-slate-300">
+                    <span>Total (Est.)</span>
+                    <span>Rs {(room.pricePerBed + 500).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={handleBooking}
-                disabled={room.availableBeds === 0}
-                className={`w-full py-4 text-white font-bold rounded-lg text-lg shadow-lg hover:scale-[0.98] transition-transform ${
-                  room.availableBeds > 0
-                    ? "bg-[var(--color-primary)] shadow-blue-600/20"
-                    : "bg-slate-400 cursor-not-allowed shadow-none"
-                }`}
-              >
-                {room.availableBeds > 0 ? "Reserve Now" : "Not Available"}
-              </button>
-
-              <p className="text-center text-xs text-slate-500 mt-4 font-medium italic">
-                You won't be charged yet
-              </p>
-
-              <div className="mt-8 pt-8 border-t border-slate-200 space-y-4">
-                <div className="flex justify-between text-slate-600">
-                  <span>Service Fee</span>
-                  <span>Rs 500</span>
-                </div>
-                <div className="flex justify-between text-blue-900 font-bold text-lg pt-4 border-t border-dashed border-slate-300">
-                  <span>Total (Est.)</span>
-                  <span>Rs {(room.pricePerBed + 500).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
             </div>
           </aside>
         </div>
@@ -711,7 +724,9 @@ const RoomDetail = () => {
                     <p className="text-xs font-bold text-slate-500 mb-2 tracking-widest uppercase">
                       {hostel?.gender || "Male"} SHARED
                     </p>
-                    <h3 className="text-xl font-bold text-blue-900 mb-4 leading-tight">{relRoom.roomType}</h3>
+                    <h3 className="text-xl font-bold text-blue-900 mb-4 leading-tight">{relRoom?.roomLabel
+                      ? `${relRoom.roomLabel} - ${relRoom.roomType || "Room"}`
+                      : `${relRoom?.roomType || "Room"}`}</h3>
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-[var(--color-primary)]">
                         Rs {relRoom.pricePerBed}
@@ -752,7 +767,7 @@ const RoomDetail = () => {
                 <div>
                   <h3 className="text-xl font-bold">Book Your Stay</h3>
                   <p className="text-blue-100 text-sm mt-1">
-                    {hostel.name} — {room.roomType}
+                    {hostel.name} — {room?.roomLabel ? `${room.roomLabel} - ${room.roomType || 'Room'}` : (room.roomType || 'Room')}
                   </p>
                 </div>
                 <button
@@ -947,9 +962,8 @@ const RoomDetail = () => {
                   src={img}
                   alt={`sphere-thumb-${idx}`}
                   onClick={() => setSphereIndex(idx)}
-                  className={`w-20 h-12 object-cover rounded-md cursor-pointer border-2 ${
-                    idx === sphereIndex ? "border-blue-400" : "border-transparent"
-                  }`}
+                  className={`w-20 h-12 object-cover rounded-md cursor-pointer border-2 ${idx === sphereIndex ? "border-blue-400" : "border-transparent"
+                    }`}
                 />
               ))}
             </div>

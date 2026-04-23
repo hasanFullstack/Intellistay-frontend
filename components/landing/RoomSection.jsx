@@ -53,7 +53,7 @@ const RoomSection = () => {
             <div className="relative h-64">
               <img
                 src={(room?.images && room.images.length > 0) ? room.images[0] : `https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=800`}
-                alt={room.description || room.roomType}
+                alt={room.description || (room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType)}
                 className="w-full h-full object-cover"
               />
               {/* Price Tag */}
@@ -66,7 +66,7 @@ const RoomSection = () => {
             {/* Content Container */}
             <div className="p-6 flex flex-col flex-grow">
               <h3 className="text-xl font-bold text-slate-900 mb-4 leading-snug">
-                {room.description || `${room.roomType} Room`}
+                {room.description || (room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : `${room.roomType} Room`)}
               </h3>
               {room.hostelId?.name && (
                 <p className="text-xs text-slate-400 mb-3">{room.hostelId.name}{room.hostelId.city ? `, ${room.hostelId.city}` : ''}</p>
@@ -78,7 +78,7 @@ const RoomSection = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Bed size={18} className="text-slate-400" />
-                  <span>{room.roomType}</span>
+                  <span>{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType}</span>
                 </div>
               </div>
 

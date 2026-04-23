@@ -16,7 +16,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
 
   const [ownerName, setOwnerName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [description, setDescription] = useState("");
+  const [phone, setPhone] = useState("");
   const [image, setImage] = useState("");
   const [profileUpdating, setProfileUpdating] = useState(false);
   const [avatarHover, setAvatarHover] = useState(false);
@@ -36,7 +36,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     if (!user) return;
     setOwnerName(user.name || "");
     setContactEmail(user.email || "");
-    setDescription(user.description || "");
+    setPhone(user.phone || "");
     setImage(user.image || "");
   }, [user]);
 
@@ -93,7 +93,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
       const payload = {
         name: ownerName.trim(),
         email: contactEmail.trim(),
-        description: description.trim(),
+        phone: phone.trim(),
         image: image || "",
       };
       const res = await updateProfile(payload);
@@ -192,11 +192,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                 onMouseEnter={() => setAvatarHover(true)}
                 onMouseLeave={() => setAvatarHover(false)}
               >
-                {image ? (
-                  <img src={image} alt="Owner" className="w-full h-full object-cover" />
-                ) : (
-                  <UserCircle className="text-[#0058be] w-20 h-20" />
-                )}
+                <img src={image ? image : "/profile.jpg"} alt="Owner" className="w-full h-full object-cover" />
                 <div className={`absolute bg-black inset-0 h-full w-full z-50 flex items-center justify-center transition-opacity pointer-events-none ${avatarHover ? "opacity-80" : "opacity-0"}`}>
                   <span className="text-sm text-white font-semibold">Change</span>
                 </div>
@@ -206,7 +202,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
             <div className="mb-6">
 
               <div className="flex items-center gap-4">
-                <div className="flex flex-col">
+                <div className="flex-1 flex flex-col">
                   <label className="block text-xs font-bold text-[#424754] uppercase tracking-widest mb-2">Name</label>
                   <input
                     className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
@@ -216,7 +212,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                     placeholder="Your name"
                   />
                 </div>
-                <div className="flex flex-col">
+                <div className="flex-1 flex flex-col">
                   <label className="block text-xs font-bold text-[#424754] uppercase tracking-widest mb-2">Email</label>
                   <input
                     className="w-full mt-2 bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
@@ -246,12 +242,13 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
                 }}
               />
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-[#424754] tracking-wide uppercase">Bio / Description</label>
-                <textarea
+                <label className="block text-sm font-bold text-[#424754] tracking-wide uppercase">Phone Number</label>
+                <input
                   className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
-                  rows="3"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g., +92 300 1234567"
                 />
               </div>
               <div className="flex justify-end">

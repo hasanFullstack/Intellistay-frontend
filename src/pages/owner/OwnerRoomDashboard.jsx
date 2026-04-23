@@ -4,10 +4,16 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getRoomSuggestedPrice } from "../../api/room.api";
+import { getRoomById, updateRoom as apiUpdateRoom, deleteRoom as apiDeleteRoom } from "../../api/room.api";
 import AddRoom from "./AddRoom";
+import DeleteConfirmModal from "../../components/DeleteConfirmModal";
 import { toast } from "react-toastify";
 
 const PAGE_SIZE = 8;
@@ -122,6 +128,16 @@ export default function OwnerRoomDashboard({
   const [page, setPage] = useState(1);
   const [isSyncingPricing, setIsSyncingPricing] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [expandedHostels, setExpandedHostels] = useState(() =>
+    Array.isArray(hostels) && hostels.length > 0 ? [hostels[0]._id] : []
+  );
+  const [showEditRoomModal, setShowEditRoomModal] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+  const [editForm, setEditForm] = useState({ images: [], pricePerBed: "", description: "" });
+  const [editPreviewImages, setEditPreviewImages] = useState([]);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletingRoomId, setDeletingRoomId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const bookedBedsByRoom = useMemo(() => {
     const map = {};
@@ -168,11 +184,10 @@ export default function OwnerRoomDashboard({
           : remainingFromBookings;
         const status = remainingBeds <= 0 ? "Booked" : "Available";
         const roomName = room?.roomLabel
-          ? `${room.roomType || "Room"} - ${room.roomLabel}`
-          : `${room.roomType || "Room"} - ${String(room?._id || "").slice(-4)}`;
+          ? `${room.roomLabel} - ${room.roomType || "Room"}`
+          : `${room.roomType || "Room"}`;
 
         rows.push({
-          number: room?.number ?? roomIndex,
           id: room._id,
           hostelId: hostel._id,
           hostelName: hostel.name || "Hostel",
@@ -282,6 +297,105 @@ export default function OwnerRoomDashboard({
     }
   }, [page, totalPages]);
 
+  useEffect(() => {
+    setExpandedHostels(Array.isArray(hostels) && hostels.length > 0 ? [hostels[0]._id] : []);
+  }, [hostels]);
+
+  const toggleHostel = (id) => {
+    setExpandedHostels((prev) => {
+      // If clicked hostel is already open, close it. Otherwise open only this one.
+      if (prev.includes(id)) return [];
+      return [id];
+    });
+  };
+
+  const openEditModal = async (roomId) => {
+    try {
+      const res = await getRoomById(roomId);
+      const room = res?.data || res;
+      setEditingRoom(room);
+      setEditForm({ images: [], pricePerBed: room.pricePerBed ?? room.price ?? "", description: room.description || "" });
+      setEditPreviewImages(Array.isArray(room.images) ? room.images : room.img ? [room.img] : []);
+      setShowEditRoomModal(true);
+    } catch (err) {
+      toast.error("Failed to load room details for editing");
+    }
+  };
+
+  const editRoom = (roomId) => openEditModal(roomId);
+
+  const deleteRoom = (roomId) => {
+    // Open confirmation modal
+    setDeletingRoomId(roomId);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingRoomId) return;
+    setDeleteLoading(true);
+    try {
+      await apiDeleteRoom(deletingRoomId);
+      toast.success("Room deleted");
+      setDeleteModalVisible(false);
+      setDeletingRoomId(null);
+      if (onDataRefresh) onDataRefresh();
+    } catch (err) {
+      toast.error("Failed to delete room");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteModalVisible(false);
+    setDeletingRoomId(null);
+    setDeleteLoading(false);
+  };
+
+  const handleEditImageUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm((prev) => ({ ...prev, images: [...(prev.images || []), reader.result] }));
+        setEditPreviewImages((prev) => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeEditPreviewImage = (index) => {
+    setEditPreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setEditForm((prev) => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== index) }));
+  };
+
+  const submitEdit = async (e) => {
+    e.preventDefault();
+    if (!editingRoom) return;
+    const payload = {};
+    if (editForm.description !== undefined) payload.description = editForm.description || "";
+    if (editForm.pricePerBed !== undefined && editForm.pricePerBed !== "") payload.pricePerBed = Number(editForm.pricePerBed);
+    // Use the preview list (which contains original + newly uploaded images minus any removed)
+    if (Array.isArray(editPreviewImages) && editPreviewImages.length > 0) payload.images = editPreviewImages;
+
+    if (Object.keys(payload).length === 0) {
+      toast.info("No changes to update");
+      return;
+    }
+
+    try {
+      await apiUpdateRoom(editingRoom._id, payload);
+      toast.success("Room updated");
+      setShowEditRoomModal(false);
+      setEditingRoom(null);
+      setEditForm({ images: [], pricePerBed: "", description: "" });
+      setEditPreviewImages([]);
+      if (onDataRefresh) onDataRefresh();
+    } catch (err) {
+      toast.error("Failed to update room");
+    }
+  };
+
   const pagedRooms = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredRooms.slice(start, start + PAGE_SIZE);
@@ -322,7 +436,6 @@ export default function OwnerRoomDashboard({
   const exportList = () => {
     const rows = filteredRooms.map((room) => [
       room.id,
-      room.number ?? "",
       room.hostelName,
       room.name,
       room.type,
@@ -333,7 +446,7 @@ export default function OwnerRoomDashboard({
     ]);
 
     const csv = [
-      ["Room ID", "Room No", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested"],
+      ["Room ID", "Hostel", "Room Name", "Type", "Capacity", "Current Price", "Status", "AI Suggested"],
       ...rows,
     ]
       .map((line) => line.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
@@ -491,6 +604,7 @@ export default function OwnerRoomDashboard({
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Current Price</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Status</th>
               <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">AI Suggested</th>
+              <th className="px-6 py-5 text-[11px] font-bold uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -501,7 +615,7 @@ export default function OwnerRoomDashboard({
               return (
                 <React.Fragment key={hostel._id}>
                   <tr className="bg-[#f3f7ff]">
-                    <td colSpan={5} className="px-6 py-4">
+                    <td colSpan={6} className="px-6 py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#e2e7ff]">
@@ -521,10 +635,11 @@ export default function OwnerRoomDashboard({
                           <div className="text-sm text-[#424754]">{hostelRooms.length} rooms</div>
                           <button
                             type="button"
-                            onClick={() => navigate(`/hostel/${hostel._id}`)}
-                            className="px-3 py-1 rounded-md bg-white border text-sm font-semibold hover:bg-[#f6f8ff]"
+                            onClick={() => toggleHostel(hostel._id)}
+                            aria-expanded={expandedHostels.includes(hostel._id)}
+                            className="px-3 py-1"
                           >
-                            View
+                            {expandedHostels.includes(hostel._id) ? <ChevronUp /> : <ChevronDown />}
                           </button>
                           <button
                             type="button"
@@ -541,7 +656,7 @@ export default function OwnerRoomDashboard({
                     </td>
                   </tr>
 
-                  {hostelRooms.map((room) => {
+                  {expandedHostels.includes(hostel._id) && hostelRooms.map((room) => {
                     const pct = room.price > 0 ? Math.round(((room.suggested - room.price) / room.price) * 100) : 0;
                     const lift = `${pct > 0 ? "+" : ""}${pct}%`;
 
@@ -554,7 +669,7 @@ export default function OwnerRoomDashboard({
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#eef2ff] text-sm font-bold text-[#0058be]">{room.number ?? ""}</span>
+                                {/* removed room number badge */}
                                 <button
                                   type="button"
                                   onClick={() => navigate(`/room/${room.id}/${room.hostelId}`)}
@@ -598,6 +713,25 @@ export default function OwnerRoomDashboard({
                                 {room.pricingSource === "ai" ? "Recommended by AI" : "Using saved room price"}
                               </span>
                             </div>
+
+                          </div>
+                        </td>
+                        <td className="px-2 py-6">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => editRoom(room.id)}
+                              className="px-3 py-1 rounded-md text-[#0058be]"
+                            >
+                              <Pencil />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteRoom(room.id)}
+                              className="px-3 py-1 text-red-600 "
+                            >
+                              <Trash2 />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -609,7 +743,7 @@ export default function OwnerRoomDashboard({
 
             {!loading && filteredRooms.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-[#424754]">No rooms found for selected filters.</td>
+                <td colSpan={6} className="px-6 py-10 text-center text-[#424754]">No rooms found for selected filters.</td>
               </tr>
             )}
           </tbody>
@@ -652,6 +786,99 @@ export default function OwnerRoomDashboard({
           </div>
         </div>
       )}
+
+      {showEditRoomModal && (
+        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-center justify-center">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold">Update Room</h3>
+              <button
+                type="button"
+                onClick={() => setShowEditRoomModal(false)}
+                className="rounded-lg px-3 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6">
+              {!editingRoom ? (
+                <p>Loading...</p>
+              ) : (
+                <form onSubmit={submitEdit}>
+                  <div className="mb-3">
+                    <label htmlFor="editPrice" className="form-label fw-semibold">Price Per Bed (Rs)</label>
+                    <input
+                      id="editPrice"
+                      type="number"
+                      className="form-control form-control-lg"
+                      min="0"
+                      value={editForm.pricePerBed}
+                      onChange={(e) => setEditForm((p) => ({ ...p, pricePerBed: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="editDescription" className="form-label fw-semibold">Description</label>
+                    <textarea
+                      id="editDescription"
+                      className="form-control form-control-lg"
+                      rows={3}
+                      value={editForm.description}
+                      onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label htmlFor="editImages" className="form-label fw-semibold">Upload Images (optional)</label>
+                    <input
+                      id="editImages"
+                      type="file"
+                      className="form-control form-control-lg"
+                      accept="image/*"
+                      multiple
+                      onChange={handleEditImageUpload}
+                    />
+                    <small className="text-muted d-block mt-2">Upload only if you want to replace/add images. First image will be featured.</small>
+                  </div>
+
+                  {editPreviewImages.length > 0 && (
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Preview Images</label>
+                      <div className="row g-2">
+                        {editPreviewImages.map((img, idx) => (
+                          <div key={idx} className="col-6 col-md-3">
+                            <div className="position-relative">
+                              <img src={img} alt={`Preview ${idx + 1}`} className="img-fluid rounded" style={{ height: "100px", objectFit: "cover", width: "100%" }} />
+                              {idx === 0 && (
+                                <span className="badge bg-warning text-dark position-absolute top-0 start-0 m-1">Featured</span>
+                              )}
+                              <button type="button" className="btn btn-sm btn-danger position-absolute bottom-0 end-0 m-1" onClick={() => removeEditPreviewImage(idx)}>Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="d-grid gap-2 mt-4">
+                    <button type="submit" className="btn btn-primary btn-lg">Update Room</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DeleteConfirmModal
+        visible={deleteModalVisible}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        itemName="room"
+        title={"Delete room?"}
+        description={"Are you sure you want to delete this room? This action cannot be undone."}
+        confirmLoading={deleteLoading}
+      />
     </div>
   );
 }

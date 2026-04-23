@@ -339,7 +339,7 @@ const RoomsEnhanced = () => {
                               room.images?.[0] ||
                               "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=1000"
                             }
-                            alt={room.roomType}
+                            alt={room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType}
                             className="room-featured-image"
                           />
                           <div className="availability-badge">
@@ -349,7 +349,7 @@ const RoomsEnhanced = () => {
 
                         <div className="room-content">
                           <div className="room-title-row">
-                            <h5 className="room-type mb-0">{room.roomType}</h5>
+                            <h5 className="room-type mb-0">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h5>
                             <span className="room-price">Rs {room.pricePerBed}/mo</span>
                           </div>
 

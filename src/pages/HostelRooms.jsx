@@ -116,7 +116,7 @@ const HostelRooms = () => {
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
-      const roomName = room.roomType || "";
+      const roomName = room.roomLabel ? `${room.roomLabel} - ${room.roomType || ""}` : (room.roomType || "");
       const matchesSearch = roomName
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
@@ -355,8 +355,8 @@ const HostelRooms = () => {
                       onKeyDown={(event) => handleRoomCardKeyDown(event, room._id)}
                     >
                       <div className="md:w-1/3 h-64 md:h-auto overflow-hidden relative">
-                        {room.images && room.images.length > 0 ? (
-                          <img src={room.images[0]} alt={room.roomType} className="w-full h-full object-cover" />
+                          {room.images && room.images.length > 0 ? (
+                          <img src={room.images[0]} alt={room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-surface-container" />
                         )}
@@ -369,7 +369,7 @@ const HostelRooms = () => {
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-2xl font-bold text-black mb-1">{room.roomType} {room.roomLabel ? <span className="text-sm text-gray-500 font-medium">· {room.roomLabel}</span> : null}</h3>
+                              <h3 className="text-2xl font-bold text-black mb-1">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h3>
                               <div className="flex items-center gap-2 text-on-surface-variant">
                                 <Users className="w-5 h-5" />
                                 <span className="text-sm font-medium">{room.totalBeds} Beds Capacity</span>
