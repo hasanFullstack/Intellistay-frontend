@@ -353,6 +353,9 @@ const RoomsEnhanced = () => {
                       typeof room.hostelId === "object"
                         ? room.hostelId
                         : hostelById.get(String(room.hostelId));
+                    const roomTypeLabel = room.roomType && room.roomLabel
+                      ? `${room.roomType}-${room.roomLabel}`
+                      : room.roomType || room.roomLabel || "Room";
 
                     const compatibility = compatibilityByRoom[room._id];
                     const showRoommateMatch =
@@ -363,7 +366,7 @@ const RoomsEnhanced = () => {
                         <div className="room-image-section">
                           <img
                             src={room.images?.[0] || "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=1000"}
-                            alt={room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType}
+                            alt={roomTypeLabel}
                             className="room-featured-image"
                           />
                           <div className="availability-badge">{room.availableBeds} beds left</div>
@@ -371,7 +374,7 @@ const RoomsEnhanced = () => {
 
                         <div className="room-content">
                           <div className="room-title-row">
-                            <h5 className="room-type mb-0">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h5>
+                            <h5 className="room-type mb-0">{roomTypeLabel}</h5>
                             <span className="room-price">Rs {room.pricePerBed}/mo</span>
                           </div>
 

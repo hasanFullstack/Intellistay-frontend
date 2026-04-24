@@ -346,6 +346,12 @@ const HostelRooms = () => {
                   </div>
                 ) : (
                   filteredRooms.map((room) => (
+                    (() => {
+                      const roomTypeLabel = room.roomType && room.roomLabel
+                        ? `${room.roomType}-${room.roomLabel}`
+                        : room.roomType || room.roomLabel || "Room";
+
+                      return (
                     <article
                       key={room._id}
                       className="bg-white rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all border-none flex flex-col md:flex-row"
@@ -356,7 +362,7 @@ const HostelRooms = () => {
                     >
                       <div className="md:w-1/3 h-64 md:h-auto overflow-hidden relative">
                           {room.images && room.images.length > 0 ? (
-                          <img src={room.images[0]} alt={room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : room.roomType} className="w-full h-full object-cover" />
+                          <img src={room.images[0]} alt={roomTypeLabel} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-surface-container" />
                         )}
@@ -369,7 +375,7 @@ const HostelRooms = () => {
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-2xl font-bold text-slate-900 mb-1">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h3>
+                              <h3 className="text-2xl font-bold text-slate-900 mb-1">{roomTypeLabel}</h3>
                               <div className="flex items-center gap-2 text-slate-500">
                                 <Users className="w-5 h-5" />
                                 <span className="text-sm font-medium">{room.totalBeds} Beds Capacity</span>
@@ -380,7 +386,7 @@ const HostelRooms = () => {
                               <p className="text-2xl font-black text-[#235784]">Rs {room.pricePerBed}</p>
                             </div>
                           </div>
-                          <p className="text-slate-600 text-base mb-6 leading-relaxed">{room.description || 'No description provided for this room.'}</p>
+                          <p className="text-slate-600 text-base mb-6 leading-relaxed">{roomTypeLabel}</p>
                         </div>
 
                         <div className="flex items-center justify-between pt-6 border-t border-gray-300">
@@ -393,6 +399,8 @@ const HostelRooms = () => {
                         </div>
                       </div>
                     </article>
+                      );
+                    })()
                   ))
                 )}
               </div>
