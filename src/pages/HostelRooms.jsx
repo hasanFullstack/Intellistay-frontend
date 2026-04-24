@@ -171,7 +171,7 @@ const HostelRooms = () => {
   }
 
   return (
-    <div className="rooms-page hostel-rooms-shell text-on-surface">
+    <div className="rooms-page hostel-rooms-shell bg-slate-50 text-slate-900 font-sans">
       <div className="bg-white/80 backdrop-blur-md shadow-sm">
         <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-4">
           <button
@@ -188,23 +188,23 @@ const HostelRooms = () => {
 
         {/* HERO */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
-          <div className="lg:col-span-7 flex flex-col ">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 px-3 py-1 bg-black rounded-full text-sm text-white font-bold">Premium Experience</div>
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="mb-6 inline-flex w-fit items-center gap-2 px-3 py-1 bg-slate-900 rounded-full text-xs tracking-wide uppercase text-white font-semibold">Premium Experience</div>
 
-            <h1 className="text-5xl md:text-7xl font-extrabold !text-[#235784] mb-6">{hostel.name}</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-[#1b4565] mb-5 tracking-tight font-headline">{hostel.name}</h1>
 
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-5">
               <span className="material-symbols-outlined !text-[#235784]"><MapPin /></span>
-              <p className="text-lg text-gray-600 font-medium mb-0">{hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}</p>
+              <p className="text-base text-slate-600 font-medium mb-0">{hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}</p>
             </div>
 
             <div className="mb-6 flex items-center gap-3">
-              <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+              <span className="px-4 py-1 bg-[#235784] text-white rounded-full text-xs font-bold tracking-wide uppercase">
                 {hostel.gender || "Male"} Hostel
               </span>
             </div>
-            <h1 className="text-2xl font-bold mb-6">Description</h1>
-            <p className="text-xl max-w-2xl mb-8">{hostel.description}</p>
+            <h2 className="text-lg font-bold text-[#1b4565] font-headline mb-4">Description</h2>
+            <p className="text-base text-slate-600 leading-relaxed max-w-2xl mb-8">{hostel.description || "Comfortable accommodation with practical amenities and a balanced student environment."}</p>
           </div>
 
           {/* Images / Gallery with Carousel */}
@@ -212,11 +212,11 @@ const HostelRooms = () => {
             {Array.isArray(hostel.images) && hostel.images.length > 0 ? (
               <div className="flex flex-col gap-4">
                 {/* Main Image with Navigation */}
-                <div className="relative rounded-xl overflow-hidden bg-surface-container">
+                <div className="relative rounded-xl overflow-hidden bg-slate-100">
                   <img
                     src={hostel.images[selectedImage]}
                     alt={`${hostel.name} ${selectedImage}`}
-                    className="w-full h-96 object-contain"
+                    className="w-full h-96 object-cover"
                   />
 
                   {/* Left Navigation Button */}
@@ -280,21 +280,21 @@ const HostelRooms = () => {
           <div className="lg:col-span-7">
             <div className="mb-16">
               <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-6">Status Overview</h2>
+                <h2 className="text-lg font-bold text-[#1b4565] font-headline mb-6">Status Overview</h2>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="flex justify-between items-center p-8 bg-white rounded-xl">
+                  <div className="flex justify-between items-center p-8 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <div>
-                      <p className="text-on-surface-variant text-base">Total Rooms</p>
-                      <p className="text-4xl font-black">{rooms.length}</p>
+                      <p className="text-slate-500 text-sm uppercase tracking-wide font-semibold">Total Rooms</p>
+                      <p className="text-3xl font-black text-[#235784]">{rooms.length}</p>
                     </div>
-                    <Building2 className="text-[#c2cdde] w-12 h-12" />
+                    <Building2 className="text-[#235784] w-12 h-12" />
                   </div>
 
-                  <div className="flex justify-between items-center p-8 bg-white rounded-xl">
+                  <div className="flex justify-between items-center p-8 bg-white rounded-xl border border-slate-100 shadow-sm">
                     <div>
-                      <p className="text-on-surface-variant text-base">Available Now</p>
-                      <p className="text-4xl font-bold text-[#235784]">{filteredRooms.length}</p>
+                      <p className="text-slate-500 text-sm uppercase tracking-wide font-semibold">Available Now</p>
+                      <p className="text-3xl font-bold text-[#235784]">{filteredRooms.length}</p>
                     </div>
                     <CircleCheck className="text-[#235784] w-12 h-12" />
                   </div>
@@ -305,13 +305,13 @@ const HostelRooms = () => {
             {/* AMENITIES */}
             {hostel.amenities && hostel.amenities.length > 0 && (
               <section className="bg-white p-8 rounded-xl shadow-sm border border-slate-100 mb-16">
-                <h2 className="text-2xl font-bold mb-8">Curated Amenities</h2>
+                <h2 className="text-lg font-bold text-[#1b4565] font-headline mb-8">Premium Amenities</h2>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   {hostel.amenities.map((amenity, i) => (
                     <div key={i} className="flex items-center gap-2 p-6">
                       <span className="material-symbols-outlined text-[#003b44] text-3xl">{amenityIcons(amenity)}</span>
-                      <span className="text-sm font-semibold">{amenity}</span>
+                      <span className="text-base font-semibold text-slate-700">{amenity}</span>
                     </div>
                   ))}
                 </div>
@@ -321,7 +321,7 @@ const HostelRooms = () => {
             {/* Filters */}
             <div className="flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between gap-8">
-                <h2 className="text-2xl font-bold mb-8">Available Spaces</h2>
+                <h2 className="text-lg font-bold text-[#1b4565] font-headline mb-8">Available Spaces</h2>
               </div>
             </div>
 
@@ -333,8 +333,8 @@ const HostelRooms = () => {
                   <div className="py-16 flex flex-col items-center justify-center">
                     <div className="text-center max-w-md">
                       <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-2xl font-bold text-gray-800 mb-2">No Rooms Available</h3>
-                      <p className="text-gray-500 mb-6">All rooms in this hostel are currently booked. Check back soon or explore other hostels!</p>
+                      <h3 className="text-2xl font-bold text-slate-800 mb-2">No Rooms Available</h3>
+                      <p className="text-base text-slate-500 mb-6">All rooms in this hostel are currently booked. Check back soon or explore other hostels!</p>
                       <button
                         onClick={() => navigate("/hostels")}
                         style={{ borderRadius: '0.5rem' }}
@@ -369,18 +369,18 @@ const HostelRooms = () => {
                         <div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <h3 className="text-2xl font-bold text-black mb-1">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h3>
-                              <div className="flex items-center gap-2 text-on-surface-variant">
+                              <h3 className="text-2xl font-bold text-slate-900 mb-1">{room.roomLabel ? `${room.roomLabel} - ${room.roomType}` : (room.roomType || '')}</h3>
+                              <div className="flex items-center gap-2 text-slate-500">
                                 <Users className="w-5 h-5" />
                                 <span className="text-sm font-medium">{room.totalBeds} Beds Capacity</span>
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs font-bold uppercase text-on-surface-variant tracking-widest mb-1">Monthly</p>
+                              <p className="text-xs font-bold uppercase text-slate-500 tracking-widest mb-1">Monthly</p>
                               <p className="text-2xl font-black text-[#235784]">Rs {room.pricePerBed}</p>
                             </div>
                           </div>
-                          <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">{room.description || 'No description provided for this room.'}</p>
+                          <p className="text-slate-600 text-base mb-6 leading-relaxed">{room.description || 'No description provided for this room.'}</p>
                         </div>
 
                         <div className="flex items-center justify-between pt-6 border-t border-gray-300">
@@ -402,7 +402,7 @@ const HostelRooms = () => {
           <div className="lg:col-span-5">
             {/* Main White Card */}
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
-              <h2 className="!text-2xl font-bold text-black !mb-8">Location Highlights</h2>
+              <h2 className="!text-lg font-bold text-[#1b4565] font-headline !mb-8">Location Highlights</h2>
 
               {/* Features List */}
               <div className="space-y-6">
@@ -410,8 +410,8 @@ const HostelRooms = () => {
                   <div key={index} className="flex gap-4 items-start">
                     <div className="mt-2">{item.icon}</div>
                     <div>
-                      <h3 className="font-bold text-slate-800 !text-lg leading-tight">{item.title}</h3>
-                      <p className="text-slate-500 text-sm">{item.description}</p>
+                      <h3 className="font-bold text-slate-800 !text-base leading-tight">{item.title}</h3>
+                      <p className="text-slate-500 text-base">{item.description}</p>
                     </div>
                   </div>
                 ))}
@@ -448,7 +448,7 @@ const HostelRooms = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-green-900 text-lg">Sustainability Focus</h3>
-                  <p className="text-green-800/80 text-sm leading-snug">
+                  <p className="text-green-800/80 text-base leading-snug">
                     {hostel?.sustainability || `${hostel?.name || "This hostel"} is committed to sustainable practices and environmental responsibility.`}
                   </p>
                 </div>

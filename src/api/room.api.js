@@ -10,7 +10,8 @@ export const getAllRooms = (config) => api.get(`/rooms`, config);
 
 export const getRoomById = (roomId) => api.get(`/rooms/${roomId}`);
 
-export const getRoomOccupants = (roomId) => api.get(`/rooms/${roomId}/occupants`);
+export const getRoomOccupants = (roomId, config = {}) =>
+  api.get(`/rooms/${roomId}/occupants`, config);
 
 export const updateRoom = (roomId, data) => api.put(`/rooms/${roomId}`, data);
 

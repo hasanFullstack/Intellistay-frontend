@@ -373,30 +373,30 @@ const RoomDetail = () => {
             {/* Title & Meta */}
             <section>
               <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-xs font-bold tracking-wider uppercase">
+                <span className="px-3 py-1 bg-black text-white rounded-full text-xs font-bold tracking-wider uppercase">
                   {hostel?.gender || "Male"} ONLY
                 </span>
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold tracking-wider flex items-center gap-1 uppercase">
+                <span className="px-3 py-1 bg-[var(--color-primary)] text-white rounded-full text-xs font-bold tracking-wider flex items-center gap-1 uppercase">
                   <CheckCircle2 size={14} /> {room.availableBeds}/
                   {room.totalBeds} BEDS AVAILABLE
                 </span>
               </div>
-              <h1 className="text-5xl font-extrabold text-blue-900 leading-[1.1] mb-2 tracking-tight font-headline">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-[#1b4565] leading-[1.1] mb-2 tracking-tight font-headline">
                 {room?.roomLabel
                   ? `${room.roomLabel} - ${hostel?.name || "Hostel"}`
                   : ` ${hostel?.name || "Hostel"}`}
               </h1>
-              <p className="text-lg text-slate-600 flex items-center gap-1">
+              <p className="text-md text-slate-600 flex items-center gap-1">
                 <MapPin size={20} className="text-[var(--color-primary)]" /> {hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}
               </p>
             </section>
 
             {/* Description */}
             <section className="border-t border-slate-200 pt-8">
-              <h2 className="text-2xl font-bold text-blue-900 mb-4 font-headline">
-                The Space
+              <h2 className="text-lg font-bold text-[#1b4565] mb-4 font-headline">
+                Description
               </h2>
-              <p className="text-slate-600 leading-relaxed text-lg max-w-2xl whitespace-pre-line">
+              <p className="text-slate-600 leading-relaxed text-base max-w-2xl whitespace-pre-line">
                 {room.description ||
                   "Experience privacy and comfort in our premium room designed for modern living. Providing ample natural light and a refreshing environment."}
               </p>
@@ -404,7 +404,7 @@ const RoomDetail = () => {
 
             {/* Amenities Grid */}
             <section className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
-              <h2 className="text-2xl font-bold text-blue-900 mb-6 font-headline">
+              <h2 className="text-xl font-bold text-[#1b4565] mb-6 font-headline">
                 Premium Amenities
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -427,12 +427,12 @@ const RoomDetail = () => {
 
             {/* House Rules */}
             <section>
-              <h2 className="text-2xl font-bold text-blue-900 mb-6 font-headline">
+              <h2 className="text-lg font-bold text-[#1b4565] mb-6 font-headline">
                 House Rules
               </h2>
               {hostel.rules ? (
                 <div className="space-y-4">
-                  <p className="text-slate-600 whitespace-pre-line leading-relaxed text-lg">
+                  <p className="text-slate-600 whitespace-pre-line leading-relaxed text-base">
                     {hostel.rules}
                   </p>
                 </div>
@@ -444,7 +444,7 @@ const RoomDetail = () => {
                       <p className="font-semibold text-slate-800">
                         No Loudspeakers
                       </p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-base text-slate-600">
                         Quiet hours are observed after 10:00 PM.
                       </p>
                     </div>
@@ -453,7 +453,7 @@ const RoomDetail = () => {
                     <CigaretteOff size={20} className="text-red-500 mt-0.5" />
                     <div>
                       <p className="font-semibold text-slate-800">No Smoking</p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-base text-slate-600">
                         This is strictly a smoke-free environment.
                       </p>
                     </div>
@@ -465,7 +465,7 @@ const RoomDetail = () => {
             {user?.role === "student" && !isSingleOccupancyRoom && (
               <section className="mt-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-blue-900 font-headline">
+                  <h2 className="text-xl font-bold text-[#1b4565] font-headline">
                     Roommate Compatibility
                   </h2>
                   <span className="text-xs font-semibold uppercase tracking-wide px-3 py-1 rounded-full bg-slate-100 text-slate-600">
@@ -885,7 +885,7 @@ const RoomDetail = () => {
                 </div>
                 <div className="border-t border-blue-200/50 pt-2 flex justify-between items-center">
                   <span className="font-bold text-gray-900">Total</span>
-                  <span className="text-2xl font-bold text-blue-600">
+                  <span className="text-xl font-bold text-blue-600">
                     Rs {calculateTotalPrice().toLocaleString()}
                   </span>
                 </div>

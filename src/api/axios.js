@@ -36,9 +36,10 @@ api.interceptors.response.use(
 
     // Auto logout on 401 (expired/invalid token)
     if (status === 401) {
+      // Allow callers to opt-out of automatic auth redirect (background checks)
+      const skipAuthRedirect = Boolean(error.config?.skipAuthRedirect);
       const currentPath = window.location.pathname;
-      // Don't toast on login/register attempts (handled locally)
-      if (!currentPath.includes("/login")) {
+      if (!skipAuthRedirect && !currentPath.includes("/login")) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         toast.error("Session expired. Please log in again.");
