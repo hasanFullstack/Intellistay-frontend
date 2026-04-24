@@ -168,6 +168,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
         raw: b,
         actionKey: String(b?._id || bookingId || idx),
         id: String(bookingId),
+        email: b?.userId?.email || b?.guestEmail || "-",
         guest: guestName,
         initials: getInitials(guestName),
         palette: avatarPalette[idx % avatarPalette.length],
@@ -403,7 +404,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                       </div>
                       <div>
                         <p className="font-bold text-[#131b2e]">{booking.guest}</p>
-                        <p className="text-xs text-[#424754] font-mono">{booking.id.startsWith("#") ? booking.id : `#${booking.id}`}</p>
+                        <p className="text-xs text-[#424754] font-mono">{booking.email}</p>
                       </div>
                     </div>
                   </td>

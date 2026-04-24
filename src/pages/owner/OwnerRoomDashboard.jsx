@@ -138,6 +138,9 @@ export default function OwnerRoomDashboard({
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [aiPriceVisible, setAiPriceVisible] = useState({});
+  const [applyingAi, setApplyingAi] = useState({});
+  const [appliedAi, setAppliedAi] = useState({});
 
   const bookedBedsByRoom = useMemo(() => {
     const map = {};
@@ -367,6 +370,25 @@ export default function OwnerRoomDashboard({
   const removeEditPreviewImage = (index) => {
     setEditPreviewImages((prev) => prev.filter((_, i) => i !== index));
     setEditForm((prev) => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== index) }));
+  };
+
+  const toggleAiPrice = (roomId) => {
+    setAiPriceVisible((prev) => ({ ...(prev || {}), [roomId]: !prev[roomId] }));
+  };
+
+  const applyAiSuggestion = async (roomId, suggested) => {
+    if (!roomId) return;
+    setApplyingAi((s) => ({ ...(s || {}), [roomId]: true }));
+    try {
+      await apiUpdateRoom(roomId, { pricePerBed: Number(suggested) });
+      toast.success("AI suggested price applied");
+      setAppliedAi((s) => ({ ...(s || {}), [roomId]: true }));
+      if (onDataRefresh) await onDataRefresh();
+    } catch (err) {
+      toast.error("Failed to apply AI price");
+    } finally {
+      setApplyingAi((s) => ({ ...(s || {}), [roomId]: false }));
+    }
   };
 
   const submitEdit = async (e) => {
@@ -689,7 +711,7 @@ export default function OwnerRoomDashboard({
                         </td>
                         <td className="px-6 py-6">
                           <div className="font-bold">{formatIntegerPrice(room.price)}</div>
-                          <div className="text-[10px] text-[#424754]">Current saved price</div>
+                          <div className="text-[10px] text-[#424754]">{appliedAi[room.id] ? "Recommended by AI" : "Current saved price"}</div>
                         </td>
                         <td className="px-6 py-6">
                           <span className={`flex items-center gap-1.5 text-xs font-bold ${statusClass[room.status] || "text-[#424754]"}`}>
@@ -698,23 +720,28 @@ export default function OwnerRoomDashboard({
                           </span>
                         </td>
                         <td className="px-6 py-6">
-                          <div className={`space-y-2`}>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#783eb2]">{formatIntegerPrice(room.suggested)}</span>
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
-                                {lift}
-                              </span>
+                          <button
+                            type="button"
+                            onClick={() => applyAiSuggestion(room.id, room.suggested)}
+                            disabled={!!applyingAi[room.id]}
+                            className="w-full text-left"
+                          >
+                            <div className={`space-y-2`}>{/* button content shows suggested price + label */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-[#783eb2]">{formatIntegerPrice(room.suggested)}</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${lift.includes("+") ? "bg-[#783eb2]/10 text-[#783eb2]" : "bg-red-100 text-red-600"}`}>
+                                    {lift}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-sm font-semibold px-3 py-1 rounded-md bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white">
+                                    {applyingAi[room.id] ? "Applying..." : appliedAi[room.id] ? "Applied" : "Apply"}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${room.pricingSource === "ai" ? "bg-[#efe8ff] text-[#6b38d4]" : "bg-[#fff1f1] text-[#b54747]"}`}>
-                                {room.pricingSource === "ai" ? "Live AI" : "Fallback"}
-                              </span>
-                              <span className="text-[10px] text-[#424754]">
-                                {room.pricingSource === "ai" ? "Recommended by AI" : "Using saved room price"}
-                              </span>
-                            </div>
-
-                          </div>
+                          </button>
                         </td>
                         <td className="px-2 py-6">
                           <div className="flex items-center gap-2">
