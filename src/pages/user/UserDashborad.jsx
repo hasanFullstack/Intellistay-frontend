@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUserBookings, cancelBooking } from "../../api/booking.api";
+import { getUserBookings, cancelBooking, completeBooking } from "../../api/booking.api";
 // favorites are handled by the `useFavorites` hook
 import { useAuth } from "../../auth/AuthContext";
 import { toast } from "react-toastify";
@@ -35,6 +35,7 @@ const UserDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [cancelModalId, setCancelModalId] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [completeLoading, setCompleteLoading] = useState(false);
   const navigate = useNavigate();
   const { toggleFavorite, isFavorited, favoriteHostels, loading: favHookLoading } = useFavorites();
 
@@ -61,6 +62,19 @@ const UserDashboard = () => {
       toast.error(getErrorMessage(err, "Failed to cancel booking"));
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleCompleteBooking = async (bookingId) => {
+    try {
+      setCompleteLoading(true);
+      await completeBooking(bookingId);
+      toast.success("Booking marked as completed");
+      await loadBookings();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to complete booking"));
+    } finally {
+      setCompleteLoading(false);
     }
   };
 
@@ -314,14 +328,25 @@ const UserDashboard = () => {
                                       <Eye size={14} />
                                       View Details
                                     </button>
-                                    {booking.status !== "cancelled" && (
-                                      <button
-                                        onClick={() => setCancelModalId(booking._id)}
-                                        className="py-2 px-4 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition"
-                                      >
-                                        Cancel
-                                      </button>
-                                    )}
+                                    <div className="flex gap-2">
+                                      {booking.status !== "cancelled" && (
+                                        <button
+                                          onClick={() => handleCompleteBooking(booking._id)}
+                                          disabled={completeLoading}
+                                          className="py-2 px-4 rounded-lg text-sm font-semibold text-green-700 border border-green-200 hover:bg-green-50 transition"
+                                        >
+                                          {completeLoading ? "Completing..." : "Complete"}
+                                        </button>
+                                      )}
+                                      {booking.status !== "cancelled" && (
+                                        <button
+                                          onClick={() => setCancelModalId(booking._id)}
+                                          className="py-2 px-4 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition"
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
