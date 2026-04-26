@@ -173,6 +173,19 @@
   gap: 0.55rem;
 }
 
+/* Ensure all popup modals appear above navbar/mobile nav */
+.modal-backdrop {
+  z-index: 1190 !important;
+}
+
+.modal,
+.modal.show,
+.ant-modal-root,
+.ant-modal-mask,
+.ant-modal-wrap {
+  z-index: 1200 !important;
+}
+
 /* Navbar User Menu */
 .navbar__user-menu {
   display: flex;

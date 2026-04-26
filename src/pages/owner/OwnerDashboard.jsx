@@ -274,7 +274,7 @@ export default function OwnerDashboard() {
         />
 
       {showAddHostel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
               <h3 className="text-xl font-bold">Add New Hostel</h3>

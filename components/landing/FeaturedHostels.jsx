@@ -5,12 +5,13 @@ import { useFavorites } from "../../src/hooks/useFavorites";
 import { getAllHostels } from "../../src/api/hostel.api";
 import { useAuth } from "../../src/auth/AuthContext";
 import { useHostels } from "../../src/context/HostelsContext";
+import { formatHostelAddress } from "../../utils/formatHostelAddress";
 
 const GENDER_OPTIONS = ["Any Gender", "Male", "Female"];
 const HOSTEL_TYPE_OPTIONS = [
   { label: "All Hostels", value: "All Hostels" },
   { label: "Available Now", value: "available" },
-  { label: "Recommended", value: "recommended" },
+  { label: "AI Recommended", value: "recommended" },
   { label: "Most Popular", value: "popular" },
   { label: "Budget Friendly", value: "budget" },
 ];
@@ -36,6 +37,17 @@ const FeaturedHostels = () => {
   const [searchActive, setSearchActive] = useState(false);
   const { hostels: ctxHostels, refresh } = useHostels();
   const isLoggedIn = Boolean(user?._id);
+
+  const getMatchingScore = (hostel) => {
+    const raw =
+      hostel?.compatibilityScore ??
+      hostel?.similarityScore ??
+      hostel?.matchScore ??
+      hostel?.breakdown?.personalityMatch;
+
+    const score = Number(raw);
+    return Number.isFinite(score) ? Math.round(score) : null;
+  };
 
   const latestEight = useMemo(() => {
     return hostels.slice(0, 8);
@@ -100,7 +112,7 @@ const FeaturedHostels = () => {
       if (typeValue === "recommended" && !isLoggedIn) {
         setHostels([]);
         setVisibleHostels([]);
-        setError("Log in to use the Recommended filter.");
+        setError("Log in to use the AI Recommended filter.");
         return;
       }
 
@@ -368,6 +380,11 @@ const FeaturedHostels = () => {
                       <span className="bg-[#235784] text-white text-[10px] font-bold px-2 py-1 rounded uppercase">
                         HOSTEL
                       </span>
+                      {user?.role === "student" && selectedType === "recommended" && getMatchingScore(hostel) !== null && (
+                        <span className="bg-[#1b4565] text-white text-[10px] font-bold px-2 py-1 rounded">
+                          Match {getMatchingScore(hostel)}%
+                        </span>
+                      )}
                     </div>
 
                     {/* Favorite Button */}
@@ -400,9 +417,7 @@ const FeaturedHostels = () => {
                     <div className=" flex gap-2">
                       <i className="bi bi-geo-alt-fill text-[#235784]"></i>
                       <p className="text-sm text-gray-500 mt-1 line-clamp-1">
-                        {hostel?.city && hostel?.addressLine1
-                          ? `${hostel.addressLine1}, ${hostel.city}`
-                          : "Address not set"}
+                        {formatHostelAddress(hostel)}
                       </p>
                     </div>
                     <div className=" flex gap-2">

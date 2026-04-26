@@ -69,8 +69,17 @@ export default function HostelPortfolio({
     city: "",
     description: "",
   });
+  const [editImages, setEditImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const fileToDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   const cards = useMemo(() => {
     return hostels.map((h) => {
@@ -162,11 +171,29 @@ export default function HostelPortfolio({
       city: hostel.sourceHostel?.city || hostel.sourceHostel?.address?.city || "",
       description: hostel.sourceHostel?.description || "",
     });
+    setEditImages(Array.isArray(hostel?.sourceHostel?.images) ? hostel.sourceHostel.images : []);
   };
 
   const closeEdit = () => {
     setEditingHostel(null);
     setEditForm({ name: "", addressLine1: "", addressLine2: "", city: "", description: "" });
+    setEditImages([]);
+  };
+
+  const handleEditImages = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    try {
+      const encoded = await Promise.all(files.map(fileToDataUrl));
+      setEditImages((prev) => [...prev, ...encoded]);
+    } catch {
+      toast.error("Failed to read selected images");
+    }
+  };
+
+  const removeEditImage = (index) => {
+    setEditImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleEditSave = async () => {
@@ -184,6 +211,7 @@ export default function HostelPortfolio({
         addressLine2: editForm.addressLine2.trim(),
         city: editForm.city.trim(),
         description: editForm.description.trim(),
+        images: editImages,
       });
       toast.success("Hostel updated successfully");
       closeEdit();
@@ -388,7 +416,7 @@ export default function HostelPortfolio({
       </div>
 
       {editingHostel && (
-        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-start justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-[1200] bg-black/50 p-4 flex items-start justify-center overflow-y-auto">
           <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8">
             <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b">
               <div>
@@ -425,6 +453,59 @@ export default function HostelPortfolio({
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Description</label>
                   <textarea className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none resize-none" rows={4} placeholder="Description" value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Hostel Images</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 outline-none"
+                    onChange={handleEditImages}
+                  />
+                  <p className="text-xs text-slate-500">Uploading new images will replace the current gallery.</p>
+
+                  {editImages.length > 0 && (
+                    <div className="grid grid-cols-3 md:grid-cols-5 gap-2 pt-1">
+                      {editImages.map((img, idx) => (
+                        <div key={`${idx}-${img?.slice?.(0, 20) || idx}`} className="position-relative">
+                          <img
+                            src={img}
+                            alt={`Hostel preview ${idx + 1}`}
+                            className="w-full h-20 object-cover rounded-lg border border-slate-200"
+                          />
+                          {idx === 0 && (
+                            <span className="badge bg-warning text-dark position-absolute top-0 start-0 m-1">Featured</span>
+                          )}
+                          <button
+                            type="button"
+                            title="Remove image"
+                            aria-label="Remove image"
+                            className="btn btn-sm position-absolute top-0 end-0 m-1 d-inline-flex align-items-center justify-content-center border-0 rounded-circle"
+                            style={{
+                              width: "24px",
+                              height: "24px",
+                              background: "rgba(239, 68, 68, 0.8)",
+                              color: "#ffffff",
+                              padding: 0,
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = "rgba(220, 38, 38, 0.95)";
+                              e.currentTarget.style.transform = "scale(1.05)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = "rgba(239, 68, 68, 0.8)";
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                            onClick={() => removeEditImage(idx)}
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">

@@ -7,6 +7,7 @@ import { useFavorites } from "../../hooks/useFavorites";
 import AppLoader from "../../components/ui/AppLoader";
 import EmptyState from "../../components/ui/EmptyState";
 import { getErrorMessage } from "../../utils/getErrorMessage";
+import { formatHostelAddress } from "../../../utils/formatHostelAddress";
 
 const RecommendedHostels = () => {
   const [recommendations, setRecommendations] = useState([]);
@@ -128,7 +129,7 @@ const RecommendedHostels = () => {
                 border: idx === 0 ? "2px solid #6366f1" : "1px solid #f1f5f9",
                 position: "relative"
               }}
-              onClick={() => navigate(`/hostels`)}
+              onClick={() => navigate(`/hostels/${rec.hostel._id}/rooms`)}
               onMouseOver={(e) => {
                 e.currentTarget.style.transform = "translateY(-4px)";
                 e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.12)";
@@ -228,9 +229,7 @@ const RecommendedHostels = () => {
                 </div>
                 <p style={{ color: "#64748b", fontSize: "13px", margin: "0 0 14px", display: "flex", alignItems: "center", gap: "4px" }}>
                   <i className="bi bi-geo-alt-fill" style={{ color: "#6366f1" }}></i>
-                  {rec.hostel.city && rec.hostel.addressLine1
-                    ? `${rec.hostel.addressLine1}, ${rec.hostel.city}`
-                    : "Address not set"}
+                  {formatHostelAddress(rec.hostel)}
                 </p>
 
                 {/* Personality Match Progress */}

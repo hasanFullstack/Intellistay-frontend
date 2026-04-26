@@ -10,6 +10,7 @@ import { Heart } from "lucide-react";
 import AppLoader from "../../components/ui/AppLoader";
 import EmptyState from "../../components/ui/EmptyState";
 import { getErrorMessage } from "../../utils/getErrorMessage";
+import { formatHostelAddress } from "../../../utils/formatHostelAddress";
 import {
   Calendar,
   MapPin,
@@ -291,10 +292,10 @@ const UserDashboard = () => {
                                       <h3 className="font-bold text-lg text-gray-900">
                                         {booking.hostelId?.name || "Unknown Hostel"}
                                       </h3>
-                                      {booking.hostelId?.city && booking.hostelId?.addressLine1 && (
+                                      {formatHostelAddress(booking.hostelId, "") && (
                                         <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                                           <MapPin size={13} />
-                                          {booking.hostelId.addressLine1}, {booking.hostelId.city}
+                                          {formatHostelAddress(booking.hostelId, "")}
                                         </p>
                                       )}
                                     </div>
@@ -382,10 +383,10 @@ const UserDashboard = () => {
                                       <h3 className="font-bold text-lg text-gray-900">
                                         {booking.hostelId?.name || "Unknown Hostel"}
                                       </h3>
-                                      {booking.hostelId?.city && booking.hostelId?.addressLine1 && (
+                                      {formatHostelAddress(booking.hostelId, "") && (
                                         <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                                           <MapPin size={13} />
-                                          {booking.hostelId.addressLine1}, {booking.hostelId.city}
+                                          {formatHostelAddress(booking.hostelId, "")}
                                         </p>
                                       )}
                                     </div>
@@ -447,7 +448,7 @@ const UserDashboard = () => {
                     const rating = host?.rating || host?.avgRating || "—";
                     const reviewsCount = host?.reviews?.length || host?.reviewsCount || 0;
                     const title = host?.name || "—";
-                    const location = host?.addressLine1 && host?.city ? `${host.addressLine1}, ${host.city}` : host?.city || "—";
+                    const location = formatHostelAddress(host, "—");
                     return (
                       <div
                         key={id || Math.random()}
@@ -506,7 +507,7 @@ const UserDashboard = () => {
       {/* Booking Detail Modal */}
       {selectedBooking && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
           style={{
             backgroundColor: "rgba(15, 23, 42, 0.6)",
             backdropFilter: "blur(4px)",
@@ -540,10 +541,10 @@ const UserDashboard = () => {
                   <p className="text-lg font-bold text-gray-900">
                     {selectedBooking.hostelId?.name || "—"}
                   </p>
-                  {selectedBooking.hostelId?.city && selectedBooking.hostelId?.addressLine1 && (
+                  {formatHostelAddress(selectedBooking.hostelId, "") && (
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       <MapPin size={12} />
-                      {selectedBooking.hostelId.addressLine1}, {selectedBooking.hostelId.city}
+                      {formatHostelAddress(selectedBooking.hostelId, "")}
                     </p>
                   )}
                 </div>
@@ -611,7 +612,7 @@ const UserDashboard = () => {
       {/* Cancel Confirmation Modal */}
       {cancelModalId && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
           style={{
             backgroundColor: "rgba(15, 23, 42, 0.6)",
             backdropFilter: "blur(4px)",

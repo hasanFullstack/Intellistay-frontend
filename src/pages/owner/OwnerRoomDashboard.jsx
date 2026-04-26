@@ -7,6 +7,7 @@ import {
   ChevronUp,
   ChevronDown,
   Pencil,
+  X,
   Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -133,7 +134,7 @@ export default function OwnerRoomDashboard({
   );
   const [showEditRoomModal, setShowEditRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
-  const [editForm, setEditForm] = useState({ images: [], pricePerBed: "", description: "" });
+  const [editForm, setEditForm] = useState({ images: [], roomLabel: "", pricePerBed: "", description: "" });
   const [editPreviewImages, setEditPreviewImages] = useState([]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState(null);
@@ -317,7 +318,12 @@ export default function OwnerRoomDashboard({
       const res = await getRoomById(roomId);
       const room = res?.data || res;
       setEditingRoom(room);
-      setEditForm({ images: [], pricePerBed: room.pricePerBed ?? room.price ?? "", description: room.description || "" });
+      setEditForm({
+        images: [],
+        roomLabel: room.roomLabel || "",
+        pricePerBed: room.pricePerBed ?? room.price ?? "",
+        description: room.description || "",
+      });
       setEditPreviewImages(Array.isArray(room.images) ? room.images : room.img ? [room.img] : []);
       setShowEditRoomModal(true);
     } catch (err) {
@@ -395,6 +401,7 @@ export default function OwnerRoomDashboard({
     e.preventDefault();
     if (!editingRoom) return;
     const payload = {};
+    if (editForm.roomLabel !== undefined) payload.roomLabel = (editForm.roomLabel || "").trim();
     if (editForm.description !== undefined) payload.description = editForm.description || "";
     if (editForm.pricePerBed !== undefined && editForm.pricePerBed !== "") payload.pricePerBed = Number(editForm.pricePerBed);
     // Use the preview list (which contains original + newly uploaded images minus any removed)
@@ -410,7 +417,7 @@ export default function OwnerRoomDashboard({
       toast.success("Room updated");
       setShowEditRoomModal(false);
       setEditingRoom(null);
-      setEditForm({ images: [], pricePerBed: "", description: "" });
+      setEditForm({ images: [], roomLabel: "", pricePerBed: "", description: "" });
       setEditPreviewImages([]);
       if (onDataRefresh) onDataRefresh();
     } catch (err) {
@@ -778,7 +785,7 @@ export default function OwnerRoomDashboard({
       </div>
 
       {showAddRoomModal && (
-        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-center justify-center">
+        <div className="fixed inset-0 z-[1200] bg-black/50 p-4 flex items-center justify-center">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
               <h3 className="text-xl font-bold">Add New Room</h3>
@@ -815,7 +822,7 @@ export default function OwnerRoomDashboard({
       )}
 
       {showEditRoomModal && (
-        <div className="fixed inset-0 z-[80] bg-black/50 p-4 flex items-center justify-center">
+        <div className="fixed inset-0 z-[1200] bg-black/50 p-4 flex items-center justify-center">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
               <h3 className="text-xl font-bold">Update Room</h3>
@@ -832,6 +839,18 @@ export default function OwnerRoomDashboard({
                 <p>Loading...</p>
               ) : (
                 <form onSubmit={submitEdit}>
+                  <div className="mb-3">
+                    <label htmlFor="editRoomLabel" className="form-label fw-semibold">Room Label</label>
+                    <input
+                      id="editRoomLabel"
+                      type="text"
+                      className="form-control form-control-lg"
+                      value={editForm.roomLabel || ""}
+                      onChange={(e) => setEditForm((p) => ({ ...p, roomLabel: e.target.value }))}
+                      placeholder="Room A, 101, Deluxe-1"
+                    />
+                  </div>
+
                   <div className="mb-3">
                     <label htmlFor="editPrice" className="form-label fw-semibold">Price Per Bed (Rs)</label>
                     <input
@@ -879,7 +898,30 @@ export default function OwnerRoomDashboard({
                               {idx === 0 && (
                                 <span className="badge bg-warning text-dark position-absolute top-0 start-0 m-1">Featured</span>
                               )}
-                              <button type="button" className="btn btn-sm btn-danger position-absolute bottom-0 end-0 m-1" onClick={() => removeEditPreviewImage(idx)}>Remove</button>
+                              <button
+                                type="button"
+                                title="Remove image"
+                                aria-label="Remove image"
+                                className="btn btn-sm position-absolute top-0 end-0 m-1 d-inline-flex align-items-center justify-content-center border-0 rounded-circle"
+                                style={{
+                                  width: "24px",
+                                  height: "24px",
+                                  background: "rgba(239, 68, 68, 0.8)",
+                                  color: "#ffffff",
+                                  padding: 0,
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.background = "rgba(220, 38, 38, 0.95)";
+                                  e.currentTarget.style.transform = "scale(1.05)";
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.8)";
+                                  e.currentTarget.style.transform = "scale(1)";
+                                }}
+                                onClick={() => removeEditPreviewImage(idx)}
+                              >
+                                <X size={13} />
+                              </button>
                             </div>
                           </div>
                         ))}
