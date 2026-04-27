@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import OwnerSidebar from "../../../components/owner/OwnerSidebar";
 import { getMyHostels } from "../../api/hostel.api";
 import { getRoomsByHostel } from "../../api/room.api";
@@ -48,6 +49,8 @@ const InsightCard = ({ title, description, borderClass, type, actionText }) => (
 );
 
 export default function OwnerDashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [hostels, setHostels] = useState([]);
   const [roomsByHostel, setRoomsByHostel] = useState({});
   const [bookings, setBookings] = useState([]);
@@ -220,6 +223,22 @@ export default function OwnerDashboard() {
     settings: "Settings",
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedTab = params.get("tab");
+    if (requestedTab && Object.prototype.hasOwnProperty.call(tabLabel, requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(location.search);
+    params.set("tab", tab);
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+    setSidebarOpen(false);
+  };
+
   return (
     <div className="bg-[#faf8ff] text-[#131b2e] font-sans">
 
@@ -268,7 +287,7 @@ export default function OwnerDashboard() {
         <OwnerSidebar
           onAdd={() => setShowAddHostel(true)}
           activeTab={activeTab}
-          onTabChange={(tab) => { setActiveTab(tab); setSidebarOpen(false); }}
+          onTabChange={handleTabChange}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />

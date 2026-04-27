@@ -324,7 +324,7 @@ const BookingSuccess = () => {
                           color: "#003868",
                         }}
                       >
-                        Your Hostel
+                        {booking.hostelId?.name || "Your Hostel"}
                       </h2>
                       {booking.hostelId && (
                         <p

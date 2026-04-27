@@ -102,7 +102,10 @@ const AddRoom = ({ hostelId, onSuccess }) => {
           id="roomType"
           className="form-select form-select-lg"
           value={data.roomType}
-          onChange={(e) => setData({ ...data, roomType: e.target.value })}
+          onChange={(e) => {
+            const roomType = e.target.value;
+            setData({ ...data, roomType, totalBeds: roomType === "Single" ? 1 : (data.roomType === "Single" ? 4 : data.totalBeds) });
+          }}
         >
           <option>Single</option>
           <option>Shared</option>
@@ -126,21 +129,23 @@ const AddRoom = ({ hostelId, onSuccess }) => {
         <small className="text-muted d-block mt-1">A short label to distinguish multiple rooms.</small>
       </div>
 
-      <div className="mb-3">
-        <label htmlFor="totalBeds" className="form-label fw-semibold">
-          Total Beds
-        </label>
-        <input
-          id="totalBeds"
-          type="number"
-          className="form-control form-control-lg"
-          min="1"
-          value={data.totalBeds}
-          onChange={(e) =>
-            setData({ ...data, totalBeds: Number(e.target.value) })
-          }
-        />
-      </div>
+      {data.roomType !== "Single" && (
+        <div className="mb-3">
+          <label htmlFor="totalBeds" className="form-label fw-semibold">
+            Total Beds
+          </label>
+          <input
+            id="totalBeds"
+            type="number"
+            className="form-control form-control-lg"
+            min="1"
+            value={data.totalBeds}
+            onChange={(e) =>
+              setData({ ...data, totalBeds: Number(e.target.value) })
+            }
+          />
+        </div>
+      )}
 
       <div className="mb-3">
         <label htmlFor="pricePerBed" className="form-label fw-semibold">

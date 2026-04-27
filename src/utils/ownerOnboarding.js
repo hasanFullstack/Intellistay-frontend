@@ -1,6 +1,6 @@
 import { getMyHostels } from "../api/hostel.api";
 import { getRoomsByHostel } from "../api/room.api";
-import { getStripeKeys } from "../api/ownerStripe.api";
+import { getConnectStatus } from "../api/ownerStripe.api";
 import { checkEnvironmentCompletion } from "../api/hostelEnvironment.api";
 
 export const getOwnerOnboardingProgress = async () => {
@@ -31,9 +31,11 @@ export const getOwnerOnboardingProgress = async () => {
     environmentCompleted = envResults.some((r) => Boolean(r?.data?.completed));
   }
 
-  const stripeRes = await getStripeKeys().catch(() => ({ data: {} }));
+  const stripeRes = await getConnectStatus().catch(() => ({ data: {} }));
   const stripeData = stripeRes?.data || {};
-  const stripeConnected = Boolean(stripeData.accountId || stripeData.publicKey);
+  const stripeConnected = Boolean(
+    stripeData.onboardingComplete || stripeData.connected || stripeData.accountId,
+  );
 
   const completedCount = [
     hostelsCount > 0,

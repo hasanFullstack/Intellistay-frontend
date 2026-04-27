@@ -313,7 +313,7 @@ const UserDashboard = () => {
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 font-semibold mb-1">
-                                        Price/Night
+                                        Price
                                       </p>
                                       <p className="font-bold text-[#2b5a84]">
                                         Rs {booking.roomId?.pricePerBed?.toLocaleString() || "—"}

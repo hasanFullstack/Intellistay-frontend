@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { UserCircle, Landmark, Eye, RefreshCw, EyeOff } from "lucide-react";
+import { UserCircle, Landmark, RefreshCw, CheckCircle2, ExternalLink, Unlink } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { updateProfile } from "../../api/user.api";
 import { toast } from "react-toastify";
 import {
-  getStripeKeys,
-  saveStripeKeys,
-  deleteStripeKeys,
+  startConnectOnboarding,
+  getConnectStatus,
+  createStripeDashboardLink,
+  disconnectStripe,
 } from "../../api/ownerStripe.api";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
@@ -23,13 +24,11 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
 
 
   const [stripeLoading, setStripeLoading] = useState(true);
-  const [stripeSaving, setStripeSaving] = useState(false);
-  const [publicKey, setPublicKey] = useState("");
-  const [secretKey, setSecretKey] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [showSecret, setShowSecret] = useState(false);
-  const [hasStoredSecret, setHasStoredSecret] = useState(false);
-  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [stripeConnecting, setStripeConnecting] = useState(false);
+  const [stripeOpeningDashboard, setStripeOpeningDashboard] = useState(false);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [stripeAccountId, setStripeAccountId] = useState(null);
+  const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false);
 
   useEffect(() => {
     // keep in sync if auth user updates
@@ -40,46 +39,33 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     setImage(user.image || "");
   }, [user]);
 
-  const loadStripe = async () => {
+  const loadStripeStatus = async () => {
     try {
       setStripeLoading(true);
-      const res = await getStripeKeys();
+      const res = await getConnectStatus();
       const data = res?.data || {};
-      const loadedPublicKey =
-        data.publicKey ||
-        data.publishableKey ||
-        data.stripePublicKey ||
-        "";
-      const loadedAccountId =
-        data.accountId ||
-        data.stripeAccountId ||
-        "";
-      const loadedSecret =
-        data.secretKey ||
-        data.secretKeyMasked ||
-        data.maskedSecret ||
-        "";
-      const hasSecret = Boolean(data.hasSecret || loadedSecret);
-
-      setPublicKey(loadedPublicKey);
-      setAccountId(loadedAccountId);
-      setSecretKey(loadedSecret || (hasSecret ? "************" : ""));
-      setHasStoredSecret(hasSecret);
-      setStripeConfigured(Boolean(loadedPublicKey || loadedAccountId || hasSecret));
+      setStripeConnected(Boolean(data.connected));
+      setStripeAccountId(data.accountId || null);
+      setStripeOnboardingComplete(Boolean(data.onboardingComplete));
     } catch (err) {
-      setPublicKey("");
-      setSecretKey("");
-      setAccountId("");
-      setHasStoredSecret(false);
-      setStripeConfigured(false);
-      toast.error(getErrorMessage(err, "Failed to load Stripe keys"));
+      setStripeConnected(false);
+      setStripeAccountId(null);
+      setStripeOnboardingComplete(false);
     } finally {
       setStripeLoading(false);
     }
   };
 
+  // Check for ?stripe=connected in URL after returning from Stripe onboarding
   useEffect(() => {
-    loadStripe();
+    const params = new URLSearchParams(window.location.search);
+    const stripeParam = params.get("stripe");
+    if (stripeParam === "connected") {
+      toast.success("Stripe account connected! Verifying status...");
+      // Remove the query param from the URL without reload
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    loadStripeStatus();
   }, []);
 
   const handleProfileSave = async () => {
@@ -110,59 +96,51 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
 
 
 
-  const handleStripeSave = async () => {
-    if (stripeConfigured) {
-      toast.info("Stripe keys are already configured. Remove keys first to change them.");
-      return;
-    }
-
-    if (!publicKey.trim()) {
-      toast.error("Stripe publishable key is required");
-      return;
-    }
-
-    if (!secretKey.trim()) {
-      toast.error("Stripe secret key is required");
-      return;
-    }
-
+  const handleConnectStripe = async () => {
     try {
-      setStripeSaving(true);
-      const payload = {
-        publicKey: publicKey.trim(),
-        publishableKey: publicKey.trim(),
-        stripePublicKey: publicKey.trim(),
-        secretKey: secretKey.trim(),
-        stripeSecretKey: secretKey.trim(),
-        accountId: accountId.trim(),
-        stripeAccountId: accountId.trim(),
-      };
-
-      await saveStripeKeys(payload);
-      toast.success("Stripe settings saved");
-      setSecretKey(secretKey.trim());
-      setHasStoredSecret(true);
-      setStripeConfigured(true);
+      setStripeConnecting(true);
+      const res = await startConnectOnboarding();
+      const { url } = res?.data || {};
+      if (!url) throw new Error("No onboarding URL returned");
+      // Redirect the owner to Stripe's hosted onboarding page
+      window.location.href = url;
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to save Stripe settings"));
-    } finally {
-      setStripeSaving(false);
+      const code = err?.response?.data?.code;
+      if (code === "CONNECT_NOT_ENABLED") {
+        toast.error(
+          "Stripe Connect is not enabled on the platform account. Enable it at dashboard.stripe.com/connect, then try again.",
+        );
+      } else {
+        toast.error(getErrorMessage(err, "Failed to start Stripe onboarding"));
+      }
+      setStripeConnecting(false);
     }
   };
 
-  const handleStripeDelete = async () => {
-    if (!window.confirm("Remove saved Stripe keys? This cannot be undone.")) return;
-
+  const handleDisconnectStripe = async () => {
+    if (!window.confirm("Disconnect your Stripe account? Students will pay through the platform account instead.")) return;
     try {
-      await deleteStripeKeys();
-      setPublicKey("");
-      setSecretKey("");
-      setAccountId("");
-      setHasStoredSecret(false);
-      setStripeConfigured(false);
-      toast.success("Stripe keys removed");
+      await disconnectStripe();
+      setStripeConnected(false);
+      setStripeAccountId(null);
+      setStripeOnboardingComplete(false);
+      toast.success("Stripe account disconnected");
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to remove keys"));
+      toast.error(getErrorMessage(err, "Failed to disconnect Stripe"));
+    }
+  };
+
+  const handleOpenStripeDashboard = async () => {
+    try {
+      setStripeOpeningDashboard(true);
+      const res = await createStripeDashboardLink();
+      const { url } = res?.data || {};
+      if (!url) throw new Error("No Stripe dashboard URL returned");
+      window.location.href = url;
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to open Stripe dashboard"));
+    } finally {
+      setStripeOpeningDashboard(false);
     }
   };
 
@@ -279,102 +257,83 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
             </div>
 
             {stripeLoading ? (
-              <div className="relative z-10 text-sm text-[#424754]">Loading Stripe settings...</div>
+              <div className="relative z-10 text-sm text-[#424754] animate-pulse">Loading payment status...</div>
             ) : (
-              <div className="space-y-6 relative z-10">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-bold text-[#424754]">Stripe Publishable Key</label>
-                    <span className="text-[10px] text-[#727785] uppercase font-bold">Public</span>
-                  </div>
-                  <input
-                    className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 font-mono text-sm outline-none"
-                    placeholder="pk_live_..."
-                    type="text"
-                    value={publicKey}
-                    onChange={(e) => setPublicKey(e.target.value)}
-                    disabled={stripeConfigured}
-                  />
-                  <p className="text-xs text-[#424754] px-1 italic">Used for client-side checkout flows.</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-bold text-[#424754]">Stripe Secret Key</label>
-                    <span className="text-[10px] text-[#ba1a1a] uppercase font-bold">Confidential</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 font-mono text-sm pr-12 outline-none"
-                      type={showSecret ? "text" : "password"}
-                      value={secretKey}
-                      onChange={(e) => setSecretKey(e.target.value)}
-                      placeholder={hasStoredSecret ? "************" : "sk_live_..."}
-                      disabled={stripeConfigured}
-                    />
+              <div className="space-y-5 relative z-10">
+                {stripeConnected ? (
+                  <>
+                    <div className={`flex items-start gap-3 p-4 rounded-2xl border ${stripeOnboardingComplete ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                      <CheckCircle2 size={20} className={`mt-0.5 shrink-0 ${stripeOnboardingComplete ? "text-emerald-600" : "text-amber-500"}`} />
+                      <div>
+                        <p className={`text-sm font-bold ${stripeOnboardingComplete ? "text-emerald-800" : "text-amber-800"}`}>
+                          {stripeOnboardingComplete ? "Stripe account active" : "Onboarding incomplete"}
+                        </p>
+                        <p className="text-xs text-[#424754] mt-0.5 font-mono break-all">{stripeAccountId}</p>
+                        {!stripeOnboardingComplete && (
+                          <p className="text-xs text-amber-700 mt-1">Finish setting up your Stripe account to receive payouts.</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#424754] leading-relaxed">
+                      Student payments are routed directly to your Stripe account. The platform only retains the service fee.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {stripeOnboardingComplete && (
+                        <button
+                          type="button"
+                          disabled={stripeOpeningDashboard}
+                          onClick={handleOpenStripeDashboard}
+                          className="py-3 flex items-center justify-center gap-2 bg-[#eaf1ff] text-[#0058be] font-extrabold rounded-2xl border border-[#cfe0ff] active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          <ExternalLink size={16} />
+                          {stripeOpeningDashboard ? "Opening..." : "Open Stripe Dashboard"}
+                        </button>
+                      )}
+                      {!stripeOnboardingComplete && (
+                        <button
+                          type="button"
+                          disabled={stripeConnecting}
+                          onClick={handleConnectStripe}
+                          className="py-3 flex items-center justify-center gap-2 bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-extrabold rounded-2xl shadow-lg shadow-[#0058be]/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          <ExternalLink size={16} />
+                          {stripeConnecting ? "Redirecting..." : "Complete Setup"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleDisconnectStripe}
+                        className={`py-3 flex items-center justify-center gap-2 bg-red-50 text-red-700 font-extrabold rounded-2xl border border-red-200 active:scale-[0.98] transition-all ${stripeOnboardingComplete ? "col-span-2" : ""}`}
+                      >
+                        <Unlink size={16} />
+                        Disconnect
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-[#f2f3ff] rounded-2xl p-4 text-sm text-[#424754] space-y-2">
+                      <p className="font-bold text-[#131b2e]">How it works</p>
+                      <ol className="list-decimal list-inside space-y-1 text-xs leading-relaxed">
+                        <li>Click below — you'll be taken to Stripe's secure onboarding page.</li>
+                        <li>Enter your bank details on Stripe (we never see this).</li>
+                        <li>Return here — your account is linked and payouts are automatic.</li>
+                      </ol>
+                    </div>
+                    <p className="text-xs text-[#424754]">
+                      No Stripe account? One will be created for you. If you skip this, all payments stay on the platform account.
+                    </p>
                     <button
                       type="button"
-                      onClick={() => setShowSecret((v) => !v)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#727785] hover:text-[#0058be]"
-                      disabled={stripeConfigured && !secretKey}
+                      disabled={stripeConnecting}
+                      onClick={handleConnectStripe}
+                      className="w-full py-4 bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-extrabold rounded-2xl shadow-lg shadow-[#0058be]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                      {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                      <ExternalLink size={20} />
+                      {stripeConnecting ? "Redirecting to Stripe..." : "Connect with Stripe"}
                     </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-[#424754]">Connected Account ID (optional)</label>
-                  <input
-                    className="w-full bg-[#f2f3ff] border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-[#0058be]/20 font-mono text-sm outline-none"
-                    type="text"
-                    placeholder="acct_..."
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                    disabled={stripeConfigured}
-                  />
-                </div>
-
-                {stripeConfigured && (
-                  <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                    Stripe keys are configured. Fields are locked for safety. Remove keys to add new ones.
-                  </p>
+                  </>
                 )}
-
-                <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={loadStripe}
-                    className="py-3 bg-[#e2e7ff] text-[#0058be] font-extrabold rounded-2xl"
-                  >
-                    Reload
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleStripeDelete}
-                    className="py-3 bg-red-100 text-red-700 font-extrabold rounded-2xl"
-                  >
-                    Remove Keys
-                  </button>
-                  <button
-                    type="button"
-                    disabled={stripeSaving || stripeConfigured}
-                    onClick={handleStripeSave}
-                    className="py-3 bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-extrabold rounded-2xl shadow-lg shadow-[#0058be]/20 disabled:opacity-50"
-                  >
-                    {stripeConfigured ? "Stripe Connected" : stripeSaving ? "Saving..." : "Save Stripe"}
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={stripeSaving || stripeConfigured}
-                  onClick={handleStripeSave}
-                  className="w-full py-4 bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white font-extrabold rounded-2xl shadow-lg shadow-[#0058be]/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <RefreshCw size={20} />
-                  {stripeConfigured ? "Already Connected" : stripeSaving ? "Saving..." : "Save & Connect Stripe"}
-                </button>
               </div>
             )}
           </section>
