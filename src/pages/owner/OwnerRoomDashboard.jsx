@@ -199,6 +199,7 @@ export default function OwnerRoomDashboard({
           type: room.roomType || "Shared",
           capacity: `${totalBeds} / ${remainingBeds} Beds`,
           price: currentPrice,
+          aiApplied: Boolean(room.aiApplied),
           status,
           totalBeds,
           remainingBeds,
@@ -213,6 +214,15 @@ export default function OwnerRoomDashboard({
 
     return rows;
   }, [hostels, roomsByHostel, bookedBedsByRoom]);
+
+  useEffect(() => {
+    // Initialize appliedAi state from server-sent room.aiApplied flags
+    const init = {};
+    baseRooms.forEach((r) => {
+      if (r.aiApplied) init[r.id] = true;
+    });
+    if (Object.keys(init).length > 0) setAppliedAi((s) => ({ ...(s || {}), ...init }));
+  }, [baseRooms]);
 
   const allRooms = useMemo(() => {
     return baseRooms.map((room) => ({
@@ -238,6 +248,15 @@ export default function OwnerRoomDashboard({
 
       const results = await Promise.all(
         baseRooms.map(async (room) => {
+          // If AI price was already applied, freeze to saved price and skip live AI calls.
+          if (room.aiApplied || appliedAi[room.id]) {
+            return {
+              id: room.id,
+              value: room.price,
+              source: "applied",
+            };
+          }
+
           try {
             const res = await getRoomSuggestedPrice(room.id);
             const aiPrice = parseSuggestedPrice(res);
@@ -268,7 +287,7 @@ export default function OwnerRoomDashboard({
 
       setSuggestedByRoom(nextSuggested);
       setPricingSourceByRoom(nextSource);
-      setAiUnavailable(results.every(({ source }) => source === "fallback"));
+      setAiUnavailable(results.every(({ source }) => source === "fallback" || source === "applied"));
       setIsSyncingPricing(false);
     };
 
@@ -277,7 +296,7 @@ export default function OwnerRoomDashboard({
     return () => {
       active = false;
     };
-  }, [baseRooms]);
+  }, [baseRooms, appliedAi]);
 
   const roomTypes = useMemo(() => {
     const unique = [...new Set(allRooms.map((room) => room.type).filter(Boolean))];
@@ -384,6 +403,7 @@ export default function OwnerRoomDashboard({
 
   const applyAiSuggestion = async (roomId, suggested) => {
     if (!roomId) return;
+    if (appliedAi[roomId]) return;
     setApplyingAi((s) => ({ ...(s || {}), [roomId]: true }));
     try {
       // Also mark that AI suggestion was applied so backend will stop
@@ -391,6 +411,8 @@ export default function OwnerRoomDashboard({
       await apiUpdateRoom(roomId, { pricePerBed: Number(suggested), aiApplied: true });
       toast.success("AI suggested price applied");
       setAppliedAi((s) => ({ ...(s || {}), [roomId]: true }));
+      setSuggestedByRoom((s) => ({ ...(s || {}), [roomId]: Number(suggested) }));
+      setPricingSourceByRoom((s) => ({ ...(s || {}), [roomId]: "applied" }));
       if (onDataRefresh) await onDataRefresh();
     } catch (err) {
       toast.error("Failed to apply AI price");
@@ -720,7 +742,7 @@ export default function OwnerRoomDashboard({
                         </td>
                         <td className="px-6 py-6">
                           <div className="font-bold">{formatIntegerPrice(room.price)}</div>
-                          <div className="text-[10px] text-[#424754]">{appliedAi[room.id] ? "Recommended by AI" : "Current saved price"}</div>
+                          <div className="text-[10px] text-[#424754]">{room.aiApplied || appliedAi[room.id] ? "Recommended by AI" : "Current saved price"}</div>
                         </td>
                         <td className="px-6 py-6">
                           <span className={`flex items-center gap-1.5 text-xs font-bold ${statusClass[room.status] || "text-[#424754]"}`}>
@@ -732,7 +754,7 @@ export default function OwnerRoomDashboard({
                           <button
                             type="button"
                             onClick={() => applyAiSuggestion(room.id, room.suggested)}
-                            disabled={!!applyingAi[room.id]}
+                            disabled={!!applyingAi[room.id] || !!appliedAi[room.id] || !!room.aiApplied}
                             className="w-full text-left"
                           >
                             <div className={`space-y-2`}>{/* button content shows suggested price + label */}
@@ -744,8 +766,8 @@ export default function OwnerRoomDashboard({
                                   </span>
                                 </div>
                                 <div>
-                                  <span className="text-sm font-semibold px-3 py-1 rounded-md bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white">
-                                    {applyingAi[room.id] ? "Applying..." : appliedAi[room.id] ? "Applied" : "Apply"}
+                                  <span className={`text-sm font-semibold px-3 py-1 rounded-md ${!!applyingAi[room.id] || !!appliedAi[room.id] || !!room.aiApplied ? 'bg-gray-300 text-gray-600' : 'bg-gradient-to-br from-[#0058be] to-[#6b38d4] text-white'}`}>
+                                    {applyingAi[room.id] ? "Applying..." : (room.aiApplied || appliedAi[room.id]) ? "Applied" : "Apply"}
                                   </span>
                                 </div>
                               </div>

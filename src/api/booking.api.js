@@ -10,6 +10,8 @@ export const completeBooking = (id) => api.put(`/bookings/${id}/complete`);
 export const getOwnerBookings = () => api.get("/bookings/owner/all");
 export const acceptBooking = (id) => api.put(`/bookings/${id}/accept`);
 export const rejectBooking = (id) => api.put(`/bookings/${id}/reject`);
+export const updateBookingSecurityFeeStatus = (id, action) =>
+  api.put(`/bookings/${id}/security-fee`, { action });
 
 // Create a Stripe Checkout session on the server and return the session
 export const createCheckoutSession = (data) =>

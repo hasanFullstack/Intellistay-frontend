@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getRoomById } from "../api/room.api";
 import { getHostelById } from "../api/hostel.api";
@@ -15,6 +16,7 @@ const CheckoutPage = () => {
   const [hostel, setHostel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
 
   // Expect booking info passed in location.state or fallback to query params
   const booking = state || {};
@@ -45,7 +47,11 @@ const CheckoutPage = () => {
 
   const calculateTotalPrice = () => {
     if (!room) return 0;
-    return room.pricePerBed * (bedsBooked || 1);
+    const base = room.pricePerBed * (bedsBooked || 1);
+    const service = user && user.role === "student" ? 1000 : 1000; // service fee applies (1000)
+    const admission = user && user.role === "student" ? 2000 : 0;
+    const security = user && user.role === "student" ? room.pricePerBed * (bedsBooked || 1) : 0;
+    return base + service + admission + security;
   };
 
   const handlePay = async () => {
@@ -135,11 +141,23 @@ const CheckoutPage = () => {
               </div>
               <div className="flex justify-between mt-2">
                 <span>Service Fee</span>
-                <span>Rs 500</span>
+                <span>Rs 1000</span>
               </div>
+              {user && user.role === "student" && (
+                <div className="flex justify-between mt-2">
+                  <span>Admission Fee (one-time)</span>
+                  <span>Rs 2000</span>
+                </div>
+              )}
+              {user && user.role === "student" && (
+                <div className="flex justify-between mt-2">
+                  <span>Security Fee</span>
+                  <span>Rs {(room?.pricePerBed * (bedsBooked || 1)).toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-lg mt-4">
                 <span>Total</span>
-                <span>Rs {(calculateTotalPrice() + 500).toLocaleString()}</span>
+                <span>Rs {calculateTotalPrice().toLocaleString()}</span>
               </div>
             </div>
           </div>

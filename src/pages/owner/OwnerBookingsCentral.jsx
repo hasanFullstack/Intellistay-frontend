@@ -11,7 +11,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { acceptBooking, rejectBooking } from "../../api/booking.api";
+import {
+  acceptBooking,
+  rejectBooking,
+  updateBookingSecurityFeeStatus,
+} from "../../api/booking.api";
 import { toast } from "react-toastify";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 
@@ -182,6 +186,10 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
         pricePerBed,
         amount: totalPrice > 0 ? totalPrice : pricePerBed,
         paymentStatus: getPaymentLabel(b),
+        securityFee: Number(b?.securityFee || 0),
+        securityFeeStatus:
+          b?.securityFeeStatus ||
+          (Number(b?.securityFee || 0) > 0 ? "held" : "not_applicable"),
         viewTab: getTabForBooking(b),
       };
     });
@@ -294,6 +302,36 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
     navigate(`/room/${booking.roomId}/${booking.hostelId}`);
   };
 
+  const handleToggleSecurityFee = async (booking) => {
+    try {
+      const bookingId = booking?.raw?._id;
+      if (!bookingId) return;
+
+      if (Number(booking.securityFee || 0) <= 0) {
+        toast.info("No security fee on this booking");
+        return;
+      }
+
+      const current = String(booking.securityFeeStatus || "held").toLowerCase();
+      const action = current === "refunded" ? "hold" : "refund";
+
+      setProcessingId(bookingId);
+      await updateBookingSecurityFeeStatus(bookingId, action);
+      setOpenMenuId(null);
+      toast.success(
+        action === "refund"
+          ? "Security fee refunded"
+          : "Security fee marked as held",
+      );
+
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to update security fee status"));
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-[#faf8ff] min-h-screen font-sans text-[#131b2e]">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
@@ -385,13 +423,14 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest">Check-in Date</th>
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-center">Status</th>
                 <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-right">Room Price / Bed</th>
+                <th className="pb-4 px-4 text-[10px] font-bold uppercase tracking-widest text-center">Security Fee</th>
                 <th className="pb-4 px-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#eaedff]">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="py-8 px-4 text-center text-[#424754]">Loading bookings...</td>
+                  <td colSpan={7} className="py-8 px-4 text-center text-[#424754]">Loading bookings...</td>
                 </tr>
               )}
 
@@ -429,6 +468,42 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
                       <p className="text-[10px] text-[#424754]">Total: {fmtCurrency(booking.amount)}</p>
                     )}
                     <p className="text-[10px] text-[#424754] font-bold uppercase">{booking.paymentStatus}</p>
+                  </td>
+                  <td className="py-6 px-4 text-center">
+                    {booking.securityFee > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-[#131b2e]">{fmtCurrency(booking.securityFee)}</p>
+                        {/* <span
+                          className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${String(booking.securityFeeStatus).toLowerCase() === "refunded"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                            }`}
+                        >
+                          {String(booking.securityFeeStatus).toLowerCase() === "refunded"
+                            ? "Refunded"
+                            : "Held"}
+                        </span>
+                        {booking.raw?._id && (
+                          <button
+                            type="button"
+                            disabled={processingId === booking.raw._id || Number(booking.securityFee || 0) <= 0}
+                            onClick={() => handleToggleSecurityFee(booking)}
+                            className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${String(booking.securityFeeStatus).toLowerCase() === "refunded"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {Number(booking.securityFee || 0) <= 0
+                              ? "No Security Fee"
+                              : String(booking.securityFeeStatus).toLowerCase() === "refunded"
+                                ? "Held"
+                                : "Refund"}
+                          </button> 
+                        )}*/}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-[#727785]">-</span>
+                    )}
                   </td>
                   <td className="py-6 px-4 text-right relative">
                     <button
@@ -479,7 +554,7 @@ export default function OwnerBookingsCentral({ bookings = [], loading = false, o
 
               {!loading && visibleBookings.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 px-4 text-center text-[#424754]">No bookings found for current view.</td>
+                  <td colSpan={7} className="py-8 px-4 text-center text-[#424754]">No bookings found for current view.</td>
                 </tr>
               )}
             </tbody>
