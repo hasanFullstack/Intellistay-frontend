@@ -57,6 +57,11 @@ const Navbar = ({ openAuth }) => {
               <NavLink to="/contact" className="navlink" onClick={() => setMenuOpen(false)}>
                 Contact
               </NavLink>
+              {user?.role === "student" && (
+                <NavLink to="/ai-recommendation" className="navlink" onClick={() => setMenuOpen(false)}>
+                  AI Recommendation
+                </NavLink>
+              )}
             </nav>
 
             {!user && (
@@ -103,6 +108,11 @@ const Navbar = ({ openAuth }) => {
               <NavLink to="/contact" className="navlink">
                 Contact
               </NavLink>
+              {user?.role === "student" && (
+                <NavLink to="/ai-recommendation" className="navlink" onClick={() => setMenuOpen(false)}>
+                  AI Recommendation
+                </NavLink>
+              )}
             </nav>
 
             <div className="mt-3 flex flex-col gap-2">

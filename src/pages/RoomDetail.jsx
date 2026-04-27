@@ -202,7 +202,12 @@ const RoomDetail = () => {
   // Calculate total price dynamically
   const calculateTotalPrice = () => {
     if (!room) return 0;
-    return room.pricePerBed * bedsBooked;
+    const base = room.pricePerBed * bedsBooked;
+    // Service fee + one-time admission fee for students
+    const service = user && user.role === "student" ? 1000 : 0;
+    const admission = user && user.role === "student" ? 2000 : 0;
+    const security = user && user.role === "student" ? room.pricePerBed * bedsBooked : 0;
+    return base + service + admission + security;
   };
 
   // Calculate stay duration in days for display
@@ -678,14 +683,37 @@ const RoomDetail = () => {
                 </p>
 
                 <div className="mt-8 pt-8 border-t border-slate-200 space-y-4">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Service Fee</span>
-                    <span>Rs 500</span>
-                  </div>
-                  <div className="flex justify-between text-blue-900 font-bold text-lg pt-4 border-t border-dashed border-slate-300">
-                    <span>Total (Est.)</span>
-                    <span>Rs {(room.pricePerBed + 500).toLocaleString()}</span>
-                  </div>
+                  {(() => {
+                    const serviceFee = 1000;
+                    const admissionFee = user && user.role === "student" ? 2000 : 0;
+                    const securityFee = user && user.role === "student" ? (Number(room.pricePerBed || 0) || 0) * Number(bedsBooked || 1) : 0;
+                    const qty = Number(bedsBooked || 1);
+                    const estimated = (Number(room.pricePerBed || 0) || 0) * qty + serviceFee + admissionFee + securityFee;
+                    return (
+                      <>
+                        <div className="flex justify-between text-slate-600">
+                          <span>Service Fee</span>
+                          <span>Rs {serviceFee}</span>
+                        </div>
+                        {admissionFee > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Admission Fee (one-time)</span>
+                            <span>Rs {admissionFee}</span>
+                          </div>
+                        )}
+                        {securityFee > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Security Fee</span>
+                            <span>Rs {securityFee.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-blue-900 font-bold text-lg pt-4 border-t border-dashed border-slate-300">
+                          <span>Total (Est.)</span>
+                          <span>Rs {estimated.toLocaleString()}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -866,14 +894,22 @@ const RoomDetail = () => {
                   <div className="ml-3 text-sm text-gray-600">
                     <div>of {room.availableBeds} available</div>
                     <div className="mt-1">
-                      Price: Rs {room.pricePerBed.toLocaleString()} / bed
+                        Price: Rs {room.pricePerBed.toLocaleString()} / bed
                     </div>
                     <div className="font-semibold mt-1">
-                      Subtotal: Rs {calculateTotalPrice().toLocaleString()}
+                        Subtotal: Rs {calculateTotalPrice().toLocaleString()}
                     </div>
                   </div>
                 </div>
               </div>
+
+                {user && user.role === "student" && (
+                  <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                    <p className="text-sm font-semibold">One-time admission fee: <span className="font-bold">Rs 2000</span></p>
+                    <p className="text-xs text-gray-600">Rs 1000 service fee goes to the platform and Rs 2000 admission fee goes to the hostel owner.</p>
+                    <p className="text-xs text-gray-600 mt-1">Security fee: <span className="font-semibold">Rs {(Number(room?.pricePerBed || 0) * Number(bedsBooked || 1)).toLocaleString()}</span> (same as per-bed fee × selected beds).</p>
+                  </div>
+                )}
 
               {/* Price Summary */}
               <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl p-5">
