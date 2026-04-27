@@ -14,6 +14,7 @@ import BecomeOwner from "./pages/BecomeOwner";
 import HostelRooms from "./pages/HostelRooms";
 import RoomDetail from "./pages/RoomDetail";
 import UserDashboard from "./pages/user/UserDashborad";
+import AIRecommendationPage from "./pages/user/AIRecommendationPage";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PersonalityQuizPage from "./pages/PersonalityQuizPage";
 import AuthModal from "./pages/AuthModal";
@@ -102,6 +103,24 @@ const AppContent = ({ authOpen, setAuthOpen }) => {
           element={
             <ProtectedRoute role="student" requiresQuiz={true}>
               <UserDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-recommendation"
+          element={
+            <ProtectedRoute role="student" requiresQuiz={true}>
+              <AIRecommendationPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-recommandation"
+          element={
+            <ProtectedRoute role="student" requiresQuiz={true}>
+              <AIRecommendationPage />
             </ProtectedRoute>
           }
         />

@@ -8,15 +8,69 @@ import AppLoader from "../../components/ui/AppLoader";
 import EmptyState from "../../components/ui/EmptyState";
 import { getErrorMessage } from "../../utils/getErrorMessage";
 import { formatHostelAddress } from "../../../utils/formatHostelAddress";
+import "../Hostels.css";
 
 const RecommendedHostels = () => {
   const [recommendations, setRecommendations] = useState([]);
-  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const navigate = useNavigate();
   const { isFavorited, toggleFavorite } = useFavorites();
+
+  const ENV_MAPS = {
+    socialEnvironment: {
+      very_social:    { text: "Very Social Vibe",    icon: "bi-people-fill",        bg: "#e0f2fe", color: "#0369a1" },
+      somewhat_social:{ text: "Friendly Atmosphere", icon: "bi-person-hearts",       bg: "#dbeafe", color: "#1d4ed8" },
+      quiet:          { text: "Calm & Reserved",     icon: "bi-person-fill",         bg: "#f1f5f9", color: "#475569" },
+      very_quiet:     { text: "Very Private",        icon: "bi-shield-fill",         bg: "#e2e8f0", color: "#334155" },
+    },
+    cleanlinessStandard: {
+      very_strict: { text: "Spotlessly Clean",  icon: "bi-stars",          bg: "#f0fdf4", color: "#166534" },
+      strict:      { text: "Strictly Clean",    icon: "bi-check2-circle",  bg: "#dcfce7", color: "#15803d" },
+      moderate:    { text: "Reasonably Tidy",   icon: "bi-house-check",    bg: "#fef9c3", color: "#854d0e" },
+      relaxed:     { text: "Relaxed Tidiness",  icon: "bi-house",          bg: "#fef3c7", color: "#92400e" },
+    },
+    noiseLevelNight: {
+      very_quiet: { text: "Silent Nights",     icon: "bi-moon-stars-fill", bg: "#ede9fe", color: "#6d28d9" },
+      quiet:      { text: "Quiet After Hours", icon: "bi-moon-fill",       bg: "#f5f3ff", color: "#7c3aed" },
+      moderate:   { text: "Moderate Nights",   icon: "bi-volume-down-fill",bg: "#fff7ed", color: "#9a3412" },
+      party_zone: { text: "Lively Nights",     icon: "bi-music-note-beamed",bg:"#fee2e2", color: "#991b1b" },
+    },
+    budgetTier: {
+      luxury:    { text: "Luxury Tier",   icon: "bi-gem",       bg: "#fdf4ff", color: "#7e22ce" },
+      premium:   { text: "Premium Range", icon: "bi-star-fill", bg: "#fefce8", color: "#713f12" },
+      mid_range: { text: "Mid Range",     icon: "bi-wallet2",   bg: "#f0fdf4", color: "#166534" },
+      budget:    { text: "Budget Friendly",icon: "bi-piggy-bank",bg: "#eff6ff", color: "#1e40af" },
+    },
+  };
+
+  const getEnvSummary = (ep) => {
+    if (!ep) return null;
+    const badges = [];
+    ["socialEnvironment", "cleanlinessStandard", "noiseLevelNight", "budgetTier"].forEach((key) => {
+      const val = ep[key];
+      const map = ENV_MAPS[key]?.[val];
+      if (map) badges.push(map);
+    });
+    if (ep.studyEnvironment === true || ep.studyEnvironment === "true") {
+      badges.push({ text: "Study Friendly", icon: "bi-book-fill", bg: "#faf5ff", color: "#6b21a8" });
+    }
+    return badges.length ? badges : null;
+  };
+
+  const getFeatureImage = (hostel) => {
+    const fallback =
+      "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=800";
+    const raw = hostel?.images?.[0];
+
+    if (!raw || typeof raw !== "string") return fallback;
+    if (/^https?:\/\//i.test(raw)) return raw;
+
+    const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+    const origin = apiBase ? apiBase.replace(/\/api$/i, "") : window.location.origin;
+    return `${origin}/${raw.replace(/^\/+/, "")}`;
+  };
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -24,7 +78,6 @@ const RecommendedHostels = () => {
         setLoading(true);
         const res = await getRecommendations();
         setRecommendations(res.data.recommendations || []);
-        setUserProfile(res.data.userProfile || null);
       } catch (err) {
         const msg = getErrorMessage(err, "Failed to load recommendations");
         toast.error(msg);
@@ -36,10 +89,10 @@ const RecommendedHostels = () => {
   }, []);
 
   const getScoreGradient = (score) => {
-    if (score >= 70) return "linear-gradient(135deg, #10b981, #059669)";
-    if (score >= 55) return "linear-gradient(135deg, #6366f1, #4f46e5)";
-    if (score >= 40) return "linear-gradient(135deg, #f59e0b, #d97706)";
-    return "linear-gradient(135deg, #f97316, #ea580c)";
+    if (score >= 70) return "linear-gradient(135deg, #1f7a5a, #0f5f44)";
+    if (score >= 55) return "linear-gradient(135deg, #235784, #1a3f57)";
+    if (score >= 40) return "linear-gradient(135deg, #d08700, #a76400)";
+    return "linear-gradient(135deg, #b45309, #92400e)";
   };
 
   const getTierBadge = (matchLabel) => {
@@ -64,6 +117,17 @@ const RecommendedHostels = () => {
     );
   };
 
+  const getDimensionIcon = (label = "") => {
+    const key = String(label).toLowerCase();
+    if (key.includes("sleep")) return "bi-moon-stars-fill";
+    if (key.includes("comfort")) return "bi-emoji-smile-fill";
+    if (key.includes("room")) return "bi-door-open-fill";
+    if (key.includes("social")) return "bi-people-fill";
+    if (key.includes("noise")) return "bi-volume-up-fill";
+    if (key.includes("budget")) return "bi-wallet2";
+    return "bi-stars";
+  };
+
   if (loading) {
     return <AppLoader message="Analyzing personality compatibility..." className="py-20" />;
   }
@@ -81,244 +145,223 @@ const RecommendedHostels = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
-        borderRadius: "16px",
-        padding: "24px 32px",
-        marginBottom: "24px",
-        color: "white",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <div>
-          <h4 style={{ margin: 0, fontWeight: 700 }}>
-            <i className="bi bi-stars me-2"></i>AI-Powered Recommendations
-          </h4>
-          <p style={{ margin: "4px 0 0", opacity: 0.85, fontSize: "14px" }}>
-            Weighted multi-factor matching • {recommendations.length} matches found
-          </p>
-        </div>
-        {userProfile && (
-          <div style={{
-            background: "rgba(255,255,255,0.2)",
-            borderRadius: "12px",
-            padding: "12px 20px",
-            textAlign: "center",
-            backdropFilter: "blur(10px)"
-          }}>
-            <div style={{ fontSize: "24px", fontWeight: 800 }}>{userProfile.personalityScore}</div>
-            <div style={{ fontSize: "11px", opacity: 0.9, textTransform: "uppercase", letterSpacing: "1px" }}>Your Score</div>
-          </div>
-        )}
-      </div>
-
       {/* Recommendation Cards */}
-      <div className="row g-4">
-        {recommendations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((rec, idx) => (
-          <div key={rec.hostel._id} className="col-md-6 col-lg-4">
-            <div
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {recommendations
+          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+          .map((rec, idx) => (
+            <article
+              key={rec.hostel._id}
+              className="w-full overflow-hidden rounded-xl border transition-all duration-300"
               style={{
-                background: "white",
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-                transition: "all 0.3s ease",
-                cursor: "pointer",
-                border: idx === 0 ? "2px solid #6366f1" : "1px solid #f1f5f9",
-                position: "relative"
-              }}
-              onClick={() => navigate(`/hostels/${rec.hostel._id}/rooms`)}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.12)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.06)";
+                background: "#ffffff",
+                borderColor: "rgba(196, 198, 211, 0.35)",
+                boxShadow: "0 24px 32px rgba(0, 49, 122, 0.06)",
               }}
             >
-              {/* Rank Badge */}
-              {idx < 3 && (
-                <div style={{
-                  position: "absolute", top: "12px", left: "12px",
-                  background: idx === 0 ? "#fbbf24" : idx === 1 ? "#94a3b8" : "#cd7c2e",
-                  color: idx === 0 ? "#78350f" : "white",
-                  borderRadius: "8px", padding: "4px 10px", fontSize: "12px",
-                  fontWeight: 800, zIndex: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
-                }}>
-                  #{idx + 1}
+              <div className="relative h-40 overflow-hidden">
+                <img
+                  src={getFeatureImage(rec.hostel)}
+                  alt={rec.hostel.name}
+                  className="h-full w-full object-cover"
+                />
+
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                  {idx < 3 && (
+                    <span
+                      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold text-white"
+                      style={{ background: "#001d4f", boxShadow: "0 10px 18px rgba(0,0,0,0.18)" }}
+                    >
+                      <i className="bi bi-award-fill mr-1 text-[12px]"></i>
+                      Top #{idx + 1}
+                    </span>
+                  )}
+                  {rec.matchLabel && (
+                    <span
+                      className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold"
+                      style={{
+                        background: "#96f592",
+                        color: "#0a7320",
+                        boxShadow: "0 6px 12px rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      {rec.matchLabel.emoji} {rec.matchLabel.text}
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* Score Badge */}
-              <div style={{
-                position: "absolute", top: "12px", right: "12px",
-                background: getScoreGradient(rec.compatibilityScore),
-                color: "white", borderRadius: "12px", padding: "8px 14px",
-                fontSize: "14px", fontWeight: 800, zIndex: 2,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-              }}>
-                {rec.compatibilityScore}% Match
-              </div>
-
-              {/* Image */}
-              <div style={{
-                height: "160px",
-                background: "linear-gradient(135deg, #e0e7ff, #c7d2fe)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                position: "relative"
-              }}>
-                {rec.hostel.images && rec.hostel.images.length > 0 ? (
-                  <img src={rec.hostel.images[0]} alt={rec.hostel.name}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <i className="bi bi-building" style={{ fontSize: "48px", color: "#818cf8", opacity: 0.5 }}></i>
-                )}
-                {/* Favorite Button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleFavorite(rec.hostel._id);
                   }}
+                  className="absolute top-3 right-3 p-1.5 text-white transition-all duration-200"
                   style={{
-                    position: "absolute",
-                    top: "8px",
-                    right: "8px",
-                    background: isFavorited(rec.hostel._id) ? "rgba(239, 68, 68, 0.8)" : "rgba(255, 255, 255, 0.2)",
+                    borderRadius: "0.375rem",
+                    backgroundColor: "rgba(30, 33, 40, 0.28)",
                     backdropFilter: "blur(8px)",
-                    padding: "8px",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: "white",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.2s ease"
-                  }}
-                  onMouseOver={(e) => {
-                    if (!isFavorited(rec.hostel._id)) {
-                      e.currentTarget.style.background = "white";
-                      e.currentTarget.style.color = "#ef4444";
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (!isFavorited(rec.hostel._id)) {
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
-                      e.currentTarget.style.color = "white";
-                    }
                   }}
                 >
                   <Heart
                     size={18}
-                    fill={isFavorited(rec.hostel._id) ? "currentColor" : "none"}
-                    color="white"
+                    fill={isFavorited(rec.hostel._id) ? "#ef4444" : "none"}
+                    color={isFavorited(rec.hostel._id) ? "#ef4444" : "white"}
                   />
+                </button>
+
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3">
+                  <h3 className="text-white text-base font-bold leading-tight">{rec.hostel.name}</h3>
+                  <div className="mt-0.5 flex items-center gap-1 text-xs text-white/90">
+                    <i className="bi bi-geo-alt-fill"></i>
+                    <span>{formatHostelAddress(rec.hostel)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4" style={{ background: "#ffffff" }}>
+                <section className="space-y-2">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#747782" }}>
+                        Compatibility
+                      </p>
+                      <h4 className="text-[22px] leading-none font-extrabold" style={{ color: "#001d4f" }}>
+                        {Math.round(Number(rec.compatibilityScore || 0))}%
+                      </h4>
+                    </div>
+                    <span className="text-xs font-semibold" style={{ color: "#001d4f" }}>
+                      {Math.round(Number(rec.breakdown?.personalityMatch || 0))}% compatible
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "#e6e8eb" }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, Number(rec.compatibilityScore || 0)))}%`,
+                        background: "#001d4f",
+                      }}
+                    />
+                  </div>
+                </section>
+
+                {rec.breakdown?.topDimensions?.length > 0 && (
+                  <section className="grid grid-cols-1 gap-1.5">
+                    {rec.breakdown.topDimensions.slice(0, 3).map((dim) => (
+                      <div
+                        key={dim.label}
+                        className="flex items-center justify-between rounded-lg px-2.5 py-1.5"
+                        style={{ background: "#f2f4f7" }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <i className={`bi ${getDimensionIcon(dim.label)} text-[13px]`} style={{ color: "#001d4f" }}></i>
+                          <span className="text-xs font-semibold" style={{ color: "#191c1e" }}>{dim.label}</span>
+                        </div>
+                        <span className="text-xs font-bold" style={{ color: "#001d4f" }}>
+                          {Math.round(Number(dim.score || 0))}%
+                        </span>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
+                <section
+                  className="flex items-start gap-2 rounded-xl border p-3"
+                  style={{ borderColor: "rgba(196, 198, 211, 0.4)", background: "#f7f9fc" }}
+                >
+                  <i className="bi bi-shield-check text-[13px] mt-0.5" style={{ color: "#747782" }}></i>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-1.5" style={{ color: "#747782" }}>
+                      Environment Notes
+                    </p>
+                    {getEnvSummary(rec.environmentProfile) ? (
+                      <div className="flex flex-wrap gap-1">
+                        {getEnvSummary(rec.environmentProfile).map((item) => (
+                          <span
+                            key={item.text}
+                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                            style={{ background: item.bg, color: item.color }}
+                          >
+                            <i className={`bi ${item.icon} text-[9px]`}></i>
+                            {item.text}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs italic" style={{ color: "#94a3b8" }}>No environment profile set</p>
+                    )}
+                  </div>
+                </section>
+
+                {rec.breakdown?.budgetAligned && (
+                  <div
+                    className="inline-flex items-center gap-2 text-[11px] font-semibold px-2.5 py-1 rounded-md border"
+                    style={{
+                      background: "#96f592",
+                      color: "#0a7320",
+                      borderColor: "#7edb7b",
+                    }}
+                  >
+                    <i className="bi bi-check-circle-fill"></i>
+                    Budget Aligned (+{Number(rec.breakdown?.budgetMatch || 0)}%)
+                  </div>
+                )}
+
+                {rec.breakdown?.strongMatches?.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "#747782" }}>
+                      Strong Match Areas
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {rec.breakdown.strongMatches.slice(0, 5).map((trait) => (
+                        <span
+                          key={trait}
+                          className="rounded-lg px-2.5 py-1 text-[10px] font-semibold"
+                          style={{ background: "#003b44", color: "#76a5b0" }}
+                        >
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rec.breakdown?.weakMatches?.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "#747782" }}>
+                      Possible Mismatches
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {rec.breakdown.weakMatches.slice(0, 3).map((trait) => (
+                        <span
+                          key={trait}
+                          className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-semibold"
+                          style={{
+                            background: "#ffdad6",
+                            color: "#93000a",
+                            borderColor: "#f5b8b2",
+                          }}
+                        >
+                          <i className="bi bi-exclamation-triangle-fill text-[11px]"></i>
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  className="w-full rounded-lg py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-all"
+                  style={{
+                    background: "#001d4f",
+                    boxShadow: "0 8px 14px rgba(0,29,79,0.18)",
+                  }}
+                  onClick={() => navigate(`/hostels/${rec.hostel._id}/rooms`)}
+                >
+                  Available Rooms
                 </button>
               </div>
 
-              {/* Content */}
-              <div style={{ padding: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-                  <h5 style={{ fontWeight: 700, color: "#1e293b", margin: 0 }}>
-                    {rec.hostel.name}
-                  </h5>
-                  {rec.matchLabel && getTierBadge(rec.matchLabel)}
-                </div>
-                <p style={{ color: "#64748b", fontSize: "13px", margin: "0 0 14px", display: "flex", alignItems: "center", gap: "4px" }}>
-                  <i className="bi bi-geo-alt-fill" style={{ color: "#6366f1" }}></i>
-                  {formatHostelAddress(rec.hostel)}
-                </p>
-
-                {/* Personality Match Progress */}
-                <div style={{ marginBottom: "10px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Personality Match</span>
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#1e293b" }}>{rec.breakdown.personalityMatch}%</span>
-                  </div>
-                  <div style={{ width: "100%", height: "8px", background: "#f1f5f9", borderRadius: "4px", overflow: "hidden" }}>
-                    <div style={{
-                      width: `${rec.breakdown.personalityMatch}%`, height: "100%",
-                      background: getScoreGradient(rec.breakdown.personalityMatch),
-                      borderRadius: "4px", transition: "width 0.8s ease"
-                    }}></div>
-                  </div>
-                </div>
-
-                {/* Budget Alignment */}
-                {rec.breakdown.budgetAligned && (
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: "4px",
-                    background: "#ecfdf5", color: "#065f46",
-                    padding: "4px 10px", borderRadius: "6px", fontSize: "11px",
-                    fontWeight: 600, marginBottom: "10px", border: "1px solid #a7f3d0"
-                  }}>
-                    <i className="bi bi-check-circle-fill"></i>
-                    Budget Aligned (+{rec.breakdown.budgetMatch}%)
-                  </div>
-                )}
-
-                {/* Top Matching Dimensions */}
-                {rec.breakdown.topDimensions?.length > 0 && (
-                  <div style={{ marginBottom: "10px" }}>
-                    <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 700, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Top Matching Areas
-                    </div>
-                    {rec.breakdown.topDimensions.map((dim) => (
-                      <div key={dim.label} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                        <div style={{ width: "60px", fontSize: "10px", color: "#64748b", fontWeight: 600 }}>{dim.label}</div>
-                        <div style={{ flex: 1, height: "4px", background: "#f1f5f9", borderRadius: "2px", overflow: "hidden" }}>
-                          <div style={{ width: `${dim.score}%`, height: "100%", background: getScoreGradient(dim.score), borderRadius: "2px" }}></div>
-                        </div>
-                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#334155", width: "28px", textAlign: "right" }}>{dim.score}%</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Strong Matches */}
-                {rec.breakdown.strongMatches?.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 700, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      ✨ Strong Matches
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                      {rec.breakdown.strongMatches.slice(0, 5).map((trait) => (
-                        <span key={trait} style={{
-                          background: "#f0f0ff", color: "#4f46e5",
-                          padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 600
-                        }}>
-                          {trait}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Weak Matches Warning */}
-                {rec.breakdown.weakMatches?.length > 0 && (
-                  <div style={{ marginTop: "8px" }}>
-                    <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 700, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      ⚠️ Potential Mismatches
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                      {rec.breakdown.weakMatches.slice(0, 3).map((trait) => (
-                        <span key={trait} style={{
-                          background: "#fef2f2", color: "#991b1b",
-                          padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 600
-                        }}>
-                          {trait}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+            </article>
+          ))}
       </div>
 
       {/* Pagination */}
@@ -338,9 +381,9 @@ const RecommendedHostels = () => {
             style={{
               padding: "8px 12px",
               borderRadius: "8px",
-              border: currentPage === 1 ? "1px solid #e2e8f0" : "1px solid #6366f1",
+              border: currentPage === 1 ? "1px solid #e2e8f0" : "1px solid #235784",
               background: currentPage === 1 ? "#f8fafc" : "white",
-              color: currentPage === 1 ? "#94a3b8" : "#6366f1",
+              color: currentPage === 1 ? "#94a3b8" : "#235784",
               cursor: currentPage === 1 ? "not-allowed" : "pointer",
               fontWeight: 600,
               fontSize: "14px"
@@ -357,8 +400,8 @@ const RecommendedHostels = () => {
                 width: "36px",
                 height: "36px",
                 borderRadius: "8px",
-                border: currentPage === page ? "1px solid #6366f1" : "1px solid #e2e8f0",
-                background: currentPage === page ? "#6366f1" : "white",
+                border: currentPage === page ? "1px solid #235784" : "1px solid #e2e8f0",
+                background: currentPage === page ? "#235784" : "white",
                 color: currentPage === page ? "white" : "#64748b",
                 cursor: "pointer",
                 fontWeight: 600,
@@ -376,9 +419,9 @@ const RecommendedHostels = () => {
             style={{
               padding: "8px 12px",
               borderRadius: "8px",
-              border: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "1px solid #e2e8f0" : "1px solid #6366f1",
+              border: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "1px solid #e2e8f0" : "1px solid #235784",
               background: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "#f8fafc" : "white",
-              color: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "#94a3b8" : "#6366f1",
+              color: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "#94a3b8" : "#235784",
               cursor: currentPage === Math.ceil(recommendations.length / itemsPerPage) ? "not-allowed" : "pointer",
               fontWeight: 600,
               fontSize: "14px"
