@@ -380,7 +380,9 @@ export default function OwnerRoomDashboard({
     if (!roomId) return;
     setApplyingAi((s) => ({ ...(s || {}), [roomId]: true }));
     try {
-      await apiUpdateRoom(roomId, { pricePerBed: Number(suggested) });
+      // Also mark that AI suggestion was applied so backend will stop
+      // returning live suggestions for this room.
+      await apiUpdateRoom(roomId, { pricePerBed: Number(suggested), aiApplied: true });
       toast.success("AI suggested price applied");
       setAppliedAi((s) => ({ ...(s || {}), [roomId]: true }));
       if (onDataRefresh) await onDataRefresh();
