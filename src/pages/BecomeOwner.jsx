@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Circle, Store, BedDouble, CreditCard, ListChecks } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
-import { getMyHostels } from "../api/hostel.api";
-import { getRoomsByHostel } from "../api/room.api";
-import { getStripeKeys } from "../api/ownerStripe.api";
-import { checkEnvironmentCompletion } from "../api/hostelEnvironment.api";
+import { getOwnerOnboardingProgress } from "../utils/ownerOnboarding";
 
 const StepCard = ({ icon, title, description }) => (
   <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -32,35 +29,11 @@ export default function BecomeOwner() {
     setLoading(true);
 
     try {
-      const hostelRes = await getMyHostels();
-      const hostels = Array.isArray(hostelRes?.data) ? hostelRes.data : [];
-      setHostelsCount(hostels.length);
-
-      if (hostels.length > 0) {
-        const roomResults = await Promise.all(
-          hostels.map((h) => getRoomsByHostel(h._id).catch(() => ({ data: [] }))),
-        );
-        const roomsTotal = roomResults.reduce(
-          (sum, r) => sum + (Array.isArray(r?.data) ? r.data.length : 0),
-          0,
-        );
-        setHasRooms(roomsTotal > 0);
-
-        const envResults = await Promise.all(
-          hostels.map((h) =>
-            checkEnvironmentCompletion(h._id).catch(() => ({ data: { completed: false } })),
-          ),
-        );
-        const anyCompleted = envResults.some((r) => Boolean(r?.data?.completed));
-        setEnvironmentCompleted(anyCompleted);
-      } else {
-        setHasRooms(false);
-        setEnvironmentCompleted(false);
-      }
-
-      const stripeRes = await getStripeKeys().catch(() => ({ data: {} }));
-      const stripeData = stripeRes?.data || {};
-      setStripeConnected(Boolean(stripeData.accountId || stripeData.publicKey));
+      const progress = await getOwnerOnboardingProgress();
+      setHostelsCount(progress.hostelsCount);
+      setHasRooms(progress.hasRooms);
+      setStripeConnected(progress.stripeConnected);
+      setEnvironmentCompleted(progress.environmentCompleted);
     } finally {
       setLoading(false);
     }
@@ -232,7 +205,7 @@ export default function BecomeOwner() {
                   onClick={() => navigate("/dashboard/owner")}
                   className="rounded-xl bg-gradient-to-br from-[#235784] to-[#1b4565] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-95"
                 >
-                  Open Owner Dashboard
+                  Go to Dashboard
                 </button>
                 <button
                   type="button"

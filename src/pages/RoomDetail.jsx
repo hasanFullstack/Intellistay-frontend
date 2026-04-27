@@ -12,6 +12,7 @@ import { toast } from "react-toastify";
 import AppLoader from "../components/ui/AppLoader";
 import EmptyState from "../components/ui/EmptyState";
 import { getErrorMessage } from "../utils/getErrorMessage";
+import { formatHostelAddress } from "../../utils/formatHostelAddress";
 import {
   Wifi,
   Car,
@@ -387,7 +388,7 @@ const RoomDetail = () => {
                   : ` ${hostel?.name || "Hostel"}`}
               </h1>
               <p className="text-md text-slate-600 flex items-center gap-1">
-                <MapPin size={20} className="text-[var(--color-primary)]" /> {hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}
+                <MapPin size={20} className="text-[var(--color-primary)]" /> {formatHostelAddress(hostel)}
               </p>
             </section>
 
@@ -746,7 +747,7 @@ const RoomDetail = () => {
 
       {showBookingModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
           style={{
             backgroundColor: "rgba(15, 23, 42, 0.6)",
             backdropFilter: "blur(4px)",
@@ -922,7 +923,7 @@ const RoomDetail = () => {
       {/* PhotoSphere viewer modal showing all images as selectable 360 sources */}
       {showSphereViewer && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 overflow-y-auto"
           style={{ backgroundColor: "rgba(2,6,23,0.85)" }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowSphereViewer(false);

@@ -5,7 +5,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
+  z-index: 1200;
 }
 
 .auth-modal-card {
@@ -21,22 +21,62 @@
 }
 
 .auth-modal-card h2 {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.35rem;
   font-weight: 600;
   color: #222;
+}
+
+.auth-helper-text {
+  margin: 0 0 1rem;
+  color: #5f6b7a;
+  font-size: 0.92rem;
 }
 
 .auth-modal-card input,
 .auth-modal-card select {
   width: 100%;
   padding: 0.65rem 0.9rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.35rem;
   border-radius: 6px;
   border: 1px solid #ccc;
   font-size: 1rem;
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
+}
+
+.auth-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.auth-password-input {
+  padding-right: 4.6rem !important;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  width: 32px !important;
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  border: 1px solid #d4dbe7 !important;
+  background: #f8fafc !important;
+  color: #235784 !important;
+  cursor: pointer;
+}
+
+.auth-password-toggle:hover {
+  background: #eef5fb !important;
+  transform: translateY(-50%) !important;
+  opacity: 1 !important;
 }
 
 .auth-modal-card input:focus,
@@ -64,6 +104,55 @@
 .auth-modal-card button:hover {
   opacity: 0.95;
   transform: translateY(-1px);
+}
+
+.auth-modal-card button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-field-error {
+  margin: 0 0 0.75rem;
+  text-align: left;
+  color: #dc2626;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.auth-caps-warning {
+  margin: -0.35rem 0 0.75rem;
+  text-align: left;
+  color: #b45309;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.auth-inline-message {
+  margin: 0.5rem 0 0.9rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.auth-inline-error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+}
+
+.auth-inline-success {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.auth-inline-info {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
 }
 
 .switch-text {

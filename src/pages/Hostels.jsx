@@ -13,9 +13,10 @@ import { Heart } from "lucide-react";
 import { useFavorites } from "../hooks/useFavorites";
 import OwnerCtaBanner from "../../components/OwnerCtaBanner";
 import { getErrorMessage } from "../utils/getErrorMessage";
+import { formatHostelAddress } from "../../utils/formatHostelAddress";
 
 const HOSTELS_CACHE_KEY = "intellistay.hostels.all.v2";
-const HOSTELS_FILTERS_CACHE_KEY = "intellistay.hostels.filters.v2";
+const HOSTELS_FILTERS_CACHE_KEY = "intellistay.hostels.filters.v3";
 const CACHE_EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes
 
 const readCachedHostels = () => {
@@ -94,6 +95,26 @@ const Hostels = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6; // Reduced from 8 for faster initial render
   const [showFilters, setShowFilters] = useState(false);
+
+  const getMatchingScore = (hostel) => {
+    const raw =
+      hostel?.compatibilityScore ??
+      hostel?.similarityScore ??
+      hostel?.matchScore ??
+      hostel?.breakdown?.personalityMatch;
+
+    const score = Number(raw);
+    return Number.isFinite(score) ? Math.round(score) : null;
+  };
+
+  const getRulesPreview = (rules) => {
+    const text = String(rules || "").trim();
+    if (!text) return "";
+
+    const words = text.split(/\s+/);
+    if (words.length <= 2) return text;
+    return `${words.slice(0, 2).join(" ")}....`;
+  };
 
   const loadHostels = useCallback(async () => {
     const cachedHostels = readCachedHostels();
@@ -420,7 +441,7 @@ const Hostels = () => {
                         : "bg-gray-100 text-gray-600 hover:bg-gray-300"
                         }`}
                     >
-                      Recommended
+                      AI Recommended
                     </button>
                     <button
                       onClick={() => handleFilterChange("popular")}
@@ -522,7 +543,7 @@ const Hostels = () => {
                         : "bg-gray-100 text-gray-600 hover:bg-gray-300"
                         }`}
                     >
-                      Recommended
+                      AI Recommended
                     </button>
                     <button
                       onClick={() => handleFilterChange("popular")}
@@ -631,7 +652,7 @@ const Hostels = () => {
                           : "bg-gray-100 text-gray-600 hover:bg-gray-300"
                           }`}
                       >
-                        Recommended
+                        AI Recommended
                       </button>
                       <button
                         onClick={() => handleFilterChange("popular")}
@@ -689,6 +710,15 @@ const Hostels = () => {
                         color={isFavorited(hostel._id) ? "#ef4444" : "white"}
                       />
                     </button>
+
+                    {user?.role === "student" && selectedFilter === "recommended" && getMatchingScore(hostel) !== null && (
+                      <div
+                        className="absolute top-3 left-3 px-2 py-1 text-white text-[11px] font-bold"
+                        style={{ borderRadius: "0.375rem", backgroundColor: "rgba(35, 87, 132, 0.9)" }}
+                      >
+                        Match {getMatchingScore(hostel)}%
+                      </div>
+                    )}
                   </div>
 
                   {/* Card Header */}
@@ -706,7 +736,7 @@ const Hostels = () => {
                       <i className="bi bi-geo-alt-fill"></i>
                       <div className="info-content">
                         <label>Location</label>
-                        <p>{hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}</p>
+                        <p>{formatHostelAddress(hostel)}</p>
                       </div>
                     </div>
 
@@ -739,8 +769,7 @@ const Hostels = () => {
                           <div className="info-content">
                             <label>Rules</label>
                             <p className="rules-text">
-                              {hostel.rules.substring(0, 80)}
-                              {hostel.rules.length > 80 ? "..." : ""}
+                              {getRulesPreview(hostel.rules)}
                             </p>
                           </div>
                         </div>

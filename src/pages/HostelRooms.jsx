@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import AppLoader from "../components/ui/AppLoader";
 import EmptyState from "../components/ui/EmptyState";
 import { getErrorMessage } from "../utils/getErrorMessage";
+import { formatHostelAddress } from "../../utils/formatHostelAddress";
 import { ArrowLeft, Building2, CircleCheck, MapPin, SunSnow, Wifi, Coffee, DoorClosedLocked, TowerControl, CookingPot, Users, Navigation, UtensilsCrossed, ShieldCheck, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
 import "./Rooms.css";
 import "./HostelRooms.css";
@@ -39,7 +40,7 @@ const generateLocationHighlights = (hostel) => {
     {
       icon: <Navigation className="w-5 h-5 text-slate-700" />,
       title: "Prime Location",
-      description: hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Well-located hostel",
+      description: formatHostelAddress(hostel, "Well-located hostel"),
     },
     {
       icon: <ShieldCheck className="w-5 h-5 text-slate-700" />,
@@ -195,7 +196,7 @@ const HostelRooms = () => {
 
             <div className="flex items-center gap-2 mb-5">
               <span className="material-symbols-outlined !text-[#235784]"><MapPin /></span>
-              <p className="text-base text-slate-600 font-medium mb-0">{hostel.city && hostel.addressLine1 ? `${hostel.addressLine1}, ${hostel.city}` : "Address not set"}</p>
+              <p className="text-base text-slate-600 font-medium mb-0">{formatHostelAddress(hostel)}</p>
             </div>
 
             <div className="mb-6 flex items-center gap-3">
