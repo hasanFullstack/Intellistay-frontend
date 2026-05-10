@@ -125,6 +125,26 @@ export default function OwnerDashboard() {
     await loadDashboardData();
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stripeParam = params.get("stripe");
+
+    if (!stripeParam) return;
+
+    if (stripeParam === "connected") {
+      toast.success("Stripe account connected! Verifying status...");
+    } else if (stripeParam === "refresh") {
+      toast.info("Finish Stripe onboarding to complete account connection.");
+    }
+
+    params.delete("stripe");
+    const nextQuery = params.toString();
+    navigate(
+      nextQuery ? `${location.pathname}?${nextQuery}` : location.pathname,
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
   const totalRooms = useMemo(() => Object.values(roomsByHostel).reduce((s, arr) => s + (arr?.length || 0), 0), [roomsByHostel]);
   const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
   const activeBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;

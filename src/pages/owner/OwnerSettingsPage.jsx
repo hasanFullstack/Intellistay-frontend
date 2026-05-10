@@ -56,15 +56,7 @@ export default function OwnerSettingsPage({ hostels = [], onDataRefresh }) {
     }
   };
 
-  // Check for ?stripe=connected in URL after returning from Stripe onboarding
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const stripeParam = params.get("stripe");
-    if (stripeParam === "connected") {
-      toast.success("Stripe account connected! Verifying status...");
-      // Remove the query param from the URL without reload
-      window.history.replaceState({}, "", window.location.pathname);
-    }
     loadStripeStatus();
   }, []);
 
